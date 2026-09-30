@@ -82,6 +82,8 @@ class ArkaPlanNotDonusturucu:
             ("Fikirler", "fikirler.txt")
         ]
         self.aktif_defter_index = 0
+        self.son_metinler = []
+        self.defterin_son_satirlarini_yukle()
 
         # Gemini Vision Hibrit Ayarları
         dizin = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -168,9 +170,22 @@ class ArkaPlanNotDonusturucu:
     def aktif_defter_dosyasi(self):
         return self.defterler[self.aktif_defter_index][1]
 
+    def defterin_son_satirlarini_yukle(self):
+        try:
+            dosya = os.path.abspath(self.aktif_defter_dosyasi)
+            if os.path.exists(dosya):
+                with open(dosya, "r", encoding="utf-8") as f:
+                    satirlar = [s.strip() for s in f.readlines() if s.strip() and not s.startswith("#") and not s.startswith("=")]
+                    self.son_metinler = satirlar[-2:] if len(satirlar) >= 2 else satirlar
+            else:
+                self.son_metinler = []
+        except Exception:
+            self.son_metinler = []
+
     def sonraki_deftere_gec(self):
         self.aktif_defter_index = (self.aktif_defter_index + 1) % len(self.defterler)
         self.son_kayit_zamani = 0
+        self.defterin_son_satirlarini_yukle()
         print(f">> [Defter] Aktif: {self.aktif_defter_adi}")
         if self.yazma_modu_aktif:
             self.butonlari_ciz()
@@ -178,6 +193,7 @@ class ArkaPlanNotDonusturucu:
     def defter_sec(self, index):
         self.aktif_defter_index = index
         self.son_kayit_zamani = 0
+        self.defterin_son_satirlarini_yukle()
         print(f">> [Defter] Aktif: {self.aktif_defter_adi}")
         if self.yazma_modu_aktif:
             self.butonlari_ciz()
@@ -395,9 +411,46 @@ class ArkaPlanNotDonusturucu:
         self.canvas.create_rectangle(ai_sol, y, btn_sol - 10, y + h, fill=ai_renk, outline="", tags=("ui_eleman", "btn_ai"))
         self.canvas.create_text(ai_sol + (ai_w // 2), y + 15, text=ai_metni, fill="white", font=("Arial", 9, "bold"), tags=("ui_eleman", "btn_ai"))
 
-        # Sağ alt köşe boyutlandırma simgesi (Mini modda sağ alttan çekip büyütülebilir)
+        # Alt Önizleme Çubuğu (Son Eklenen 2 Satır)
+        _, h_win = self.mevcut_boyut()
+        footer_h = 44
+        fy1 = h_win - footer_h
+        fy2 = h_win
+
         if not self.tam_ekran_mi:
-            _, h_win = self.mevcut_boyut()
+            self.canvas.create_rectangle(0, fy1, w, fy2, fill="#0b1120", outline="#1e293b", tags="ui_eleman")
+
+            if not self.son_metinler:
+                self.canvas.create_text(
+                    14, fy1 + (footer_h // 2), 
+                    text="✏️ Kalemle yazın... [Enter] = Metne Çevir | Karalama = Temizle", 
+                    fill="#64748b", anchor="w", font=("Segoe UI", 9, "italic"), tags="ui_eleman"
+                )
+            elif len(self.son_metinler) == 1:
+                txt = self.son_metinler[0]
+                if len(txt) > 85: txt = txt[:82] + "..."
+                self.canvas.create_text(
+                    14, fy1 + 22, 
+                    text=f"💬 Son: {txt}", 
+                    fill="#38bdf8", anchor="w", font=("Segoe UI", 9, "bold"), tags="ui_eleman"
+                )
+            else:
+                txt1 = self.son_metinler[-2]
+                txt2 = self.son_metinler[-1]
+                if len(txt1) > 85: txt1 = txt1[:82] + "..."
+                if len(txt2) > 85: txt2 = txt2[:82] + "..."
+                self.canvas.create_text(
+                    14, fy1 + 13, 
+                    text=f"  • {txt1}", 
+                    fill="#94a3b8", anchor="w", font=("Segoe UI", 8), tags="ui_eleman"
+                )
+                self.canvas.create_text(
+                    14, fy1 + 31, 
+                    text=f"💬 {txt2}", 
+                    fill="#38bdf8", anchor="w", font=("Segoe UI", 9, "bold"), tags="ui_eleman"
+                )
+
+            # Sağ alt köşe boyutlandırma simgesi (Mini modda sağ alttan çekip büyütülebilir)
             self.canvas.create_line(w - 18, h_win - 6, w - 6, h_win - 18, fill="#64748b", width=2, tags="ui_eleman")
             self.canvas.create_line(w - 12, h_win - 6, w - 6, h_win - 12, fill="#64748b", width=2, tags="ui_eleman")
             self.canvas.create_line(w - 6, h_win - 6, w - 6, h_win - 6, fill="#64748b", width=2, tags="ui_eleman")
@@ -481,7 +534,11 @@ class ArkaPlanNotDonusturucu:
             self._win_start_y = self.root.winfo_y()
             return
 
-        # 4. Çizim başlatma (y > 42 ise çizim alanıdır)
+        # 4. Alt önizleme çubuğu kontrolü (Mini Pad modunda alt 44 piksele çizim yapılmasın)
+        if not self.tam_ekran_mi and event.y >= h - 44:
+            return
+
+        # 5. Çizim başlatma (y > 42 ise çizim alanıdır)
         self.kalem_basili = True
         self.son_x, self.son_y = event.x, event.y
         self.son_yazma_zamani = time.time()
@@ -724,6 +781,14 @@ class ArkaPlanNotDonusturucu:
             print(f"Pano Hatası: {e}")
 
         self.dosyaya_kaydet(metin)
+
+        # Ped üzerinde gösterilmek üzere son 2 metni güncelle
+        self.son_metinler.append(metin)
+        if len(self.son_metinler) > 2:
+            self.son_metinler = self.son_metinler[-2:]
+
+        if self.yazma_modu_aktif:
+            self.root.after(0, self.butonlari_ciz)
 
         if self.otomatik_yapistir:
             threading.Thread(target=self._arka_planda_yapistir, daemon=True).start()
