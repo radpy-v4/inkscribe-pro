@@ -249,25 +249,32 @@ class ArkaPlanNotDonusturucu:
                 }
             }
 
-            url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={self.gemini_api_key}'
+            url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent'
+            headers = {
+                'Content-Type': 'application/json',
+                'X-goog-api-key': self.gemini_api_key
+            }
             req = urllib.request.Request(
                 url,
                 data=json.dumps(payload).encode('utf-8'),
-                headers={'Content-Type': 'application/json'}
+                headers=headers
             )
-            # 1.6 sn zaman aşımı: Eğer ağ gecikirse kullanıcıyı bekletmeden anında Windows Ink'e aktarır
-            with urllib.request.urlopen(req, timeout=1.6) as resp:
-                res = json.loads(resp.read().decode())
-                if 'candidates' in res and res['candidates']:
-                    txt = res['candidates'][0]['content']['parts'][0]['text'].strip()
-                    if txt.startswith("```") and txt.endswith("```"):
-                        lines = txt.split("\n")
-                        txt = "\n".join(lines[1:-1]).strip() if len(lines) >= 3 else txt.replace("```", "").strip()
-                    if txt and not txt.lower().startswith("görüntüde") and not txt.lower().startswith("bu görselde"):
-                        return txt
-
+            # 2.5 sn zaman aşımı
+            try:
+                with urllib.request.urlopen(req, timeout=2.5) as resp:
+                    res = json.loads(resp.read().decode())
+                    if 'candidates' in res and res['candidates']:
+                        txt = res['candidates'][0]['content']['parts'][0]['text'].strip()
+                        if txt.startswith("```") and txt.endswith("```"):
+                            lines = txt.split("\n")
+                            txt = "\n".join(lines[1:-1]).strip() if len(lines) >= 3 else txt.replace("```", "").strip()
+                        if txt and not txt.lower().startswith("görüntüde") and not txt.lower().startswith("bu görselde"):
+                            return txt
+            except urllib.error.HTTPError as http_err:
+                hata_detayi = http_err.read().decode('utf-8', errors='ignore')
+                print(f"[AI Vision API Hatası]: HTTP {http_err.code} - {hata_detayi}")
         except Exception as e:
-            print(f"[Vision AI Hızlı Geçiş]: Ağ gecikmesi veya zaman aşımı ({e}), yerel motora aktarılıyor...")
+            print(f"[Vision AI Hızlı Geçiş]: ({e}), yerel motora aktarılıyor...")
         return None
 
     def baslangic_durumu_al(self):
