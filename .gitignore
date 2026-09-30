@@ -1,0 +1,40 @@
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec.bak
+
+# Sanal Ortamlar (Virtual Environments)
+.venv/
+venv/
+ENV/
+env/
+
+# PyInstaller / Derleme Çıktıları
+build/
+dist/
+
+# Hassas Yapılandırma ve API Anahtarları
+config.json
+
+# Kişisel Not Dosyaları ve Test Verileri
+notlar.txt
+ders_notlari.txt
+yapilacaklar.txt
+fikirler.txt
+
+# Çizim / Debug Görselleri
+*.png
+*.jpg
+*.jpeg
+
+# IDE & Editör Ayarları
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# İşletim Sistemi Geçici Dosyaları
+Thumbs.db
+Desktop.ini
+.DS_Store

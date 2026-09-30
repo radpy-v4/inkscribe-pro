@@ -1,0 +1,5 @@
+{
+    "gemini_api_key": "",
+    "ai_modu_aktif": true,
+    "description": "When ai_modu_aktif is true and a valid API key is provided, Gemini Vision AI is used for recognition. If offline or no key is specified, it seamlessly falls back to the native offline Windows Ink engine."
+}

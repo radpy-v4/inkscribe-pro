@@ -1,0 +1,11 @@
+# GUI, Image Processing & Input Listeners
+Pillow>=10.0.0
+pynput>=1.7.6
+pystray>=0.19.5
+
+# Windows Native Handwriting API (Windows Ink Recognition)
+winrt-Windows.UI.Input.Inking
+winrt-Windows.Foundation
+
+# Optional: Standalone Binary Builder
+pyinstaller>=6.0.0
