@@ -16,6 +16,10 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 - **🤖 Hibrit El Yazısı Tanıma:**
   - **Offline (Windows Ink):** İnternet olmadan doğrudan Windows'un yerel el yazısı motoruyla hızlı ve kesintisiz çevrim.
   - **Online (Gemini Vision AI):** İnternet ve API anahtarı mevcutken karmaşık el yazılarını en yüksek doğrulukla çözümleme.
+  - **Evrensel Anahtar & Kesintisiz Geçiş:** Hem Google AI Studio (`AIzaSy...`) hem de Google Cloud (`AQ....`) anahtarlarını destekler. Ağ gecikmesi veya sunucu yoğunluğu (HTTP 503) olduğunda anında çevrimdışı Windows Ink motoruna düşerek asla takılmaz.
+- **💬 Canlı 2 Satır Not Önizlemesi:**
+  - Dönüştürülen son 2 notu pedin altındaki şık şeritte anlık olarak görüntüler.
+  - Defterler arasında geçiş yapıldığında ilgili defterdeki son notları otomatik olarak yükler.
 - **🖥️ Çift Çalışma Modu:**
   - **Yüzen Mini Pad (Floating Pad):** Ekranın köşesinde modern koyu cam temalı, boyutlandırılabilir ve taşınabilir pratik not alanı.
   - **Yarı Saydam Tam Ekran (Canvas Overlay):** Tüm ekran üzerine serbestçe yazıp not alma modu.

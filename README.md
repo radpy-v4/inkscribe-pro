@@ -17,6 +17,10 @@
 - **⚡ Hybrid Recognition Engine:**
   - **Offline (Windows Ink):** Ultra-fast, zero-latency local handwriting recognition powered by native Windows Ink APIs. No internet connection required.
   - **Online (Google Gemini Vision AI):** High-accuracy cloud AI recognition for cursive, complex handwriting, or shorthand. Automatically falls back to offline mode when offline.
+  - **Universal Auth & Resilient Fallback:** Supports both Google AI Studio (`AIzaSy...`) and Google Cloud (`AQ....`) keys. If network lag, rate limits, or server errors occur, it instantly and seamlessly falls back to offline Windows Ink with zero downtime.
+- **💬 Live 2-Line Note Preview:**
+  - Displays the last 2 recognized notes directly on the pad's footer in real-time.
+  - Automatically loads and displays the latest notes whenever you switch between notebooks.
 - **🖥️ Dual Display Modes:**
   - **Floating Mini Pad:** Sleek dark-glass PIP (picture-in-picture) notepad that floats on top of your apps. Fully movable and resizable.
   - **Transparent Full-Screen Overlay:** Annotate and take notes directly over your entire screen.
