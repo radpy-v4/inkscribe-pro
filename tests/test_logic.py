@@ -22,6 +22,7 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from src.gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi
+from src.filter import TitremeFiltresi
 from src.engine import gemini_metin_ayristir, GeminiVisionRecognizer
 from src.storage import metin_ekleme_bicimlendir, NotebookManager
 from src.config import ConfigManager
@@ -548,6 +549,62 @@ class TestInkSessionJestAkisi(unittest.TestCase):
         # Image üzerindeki dikey çizgi silinmiş olmalı
         pixel = app.image.getpixel((105, 160))
         self.assertEqual(pixel, (255, 255, 255))
+
+    def test_titreme_filtresi_mikro_paraziti_yutar(self):
+        """Sensörün 1.2 pikselden az mikro titreşimlerinde None dönerek gürültüyü yok etmeli."""
+        filtre = TitremeFiltresi(aktif=True, min_mesafe=1.5)
+        p1 = filtre.baslat(100.0, 100.0, t=1.0)
+        self.assertEqual(p1.x, 100.0)
+        self.assertEqual(p1.y, 100.0)
+
+        # 0.5 piksellik mikro titreşim
+        p_gurultu = filtre.filtrele(100.3, 100.4, t=1.05)
+        self.assertIsNone(p_gurultu)
+
+    def test_titreme_filtresi_yavas_yazarken_yumusatir(self):
+        """Yavaş çizimde dinamik alfa düşerek ani sıçramayı yumuşatmalı."""
+        filtre = TitremeFiltresi(aktif=True, min_mesafe=1.0, min_alfa=0.25, maks_alfa=0.90, hiz_esigi=200.0)
+        filtre.baslat(100.0, 100.0, t=1.0)
+
+        # Yavaşça sağa 10 piksel hareket (hız = 10 px / 1.0 saniye = 10 px/s, çok yavaş)
+        p = filtre.filtrele(110.0, 100.0, t=2.0)
+        self.assertIsNotNone(p)
+        # Filtrelenmiş X değeri ham 110 yerine yumuşatılarak ~102.5 civarında olmalı
+        self.assertLess(p.x, 105.0)
+        self.assertGreater(p.x, 100.5)
+
+    def test_titreme_filtresi_hizli_cizgide_gecikmesiz_takip_eder(self):
+        """Hızlı fiske veya çizgide alfa maksimuma çıkarak kalemi anında takip etmeli."""
+        filtre = TitremeFiltresi(aktif=True, min_mesafe=1.0, min_alfa=0.25, maks_alfa=0.95, hiz_esigi=100.0)
+        filtre.baslat(100.0, 100.0, t=1.0)
+
+        # 0.05 saniyede 100 piksel hareket (hız = 2000 px/s, çok hızlı)
+        p = filtre.filtrele(200.0, 100.0, t=1.05)
+        self.assertIsNotNone(p)
+        # Hızlı vuruşta nokta neredeyse doğrudan kalemin ucuna ulaşmalı
+        self.assertGreater(p.x, 190.0)
+
+    def test_titreme_filtresi_devre_disiyken_ham_koordinat_doner(self):
+        """Filtre kapalıysa mikro titreşimler de dahil her nokta olduğu gibi iletilmeli."""
+        filtre = TitremeFiltresi(aktif=False, min_mesafe=2.0)
+        filtre.baslat(100.0, 100.0)
+        p = filtre.filtrele(100.2, 100.1)
+        self.assertIsNotNone(p)
+        self.assertEqual(p.x, 100.2)
+        self.assertEqual(p.y, 100.1)
+
+    def test_titreme_filtresi_sifirla_hafizayi_temizler(self):
+        """Vuruş bırakıldığında sifirla() hafızayı temizlemeli, yeni vuruş bağımsız başlamalı."""
+        filtre = TitremeFiltresi(aktif=True)
+        filtre.baslat(50.0, 50.0)
+        filtre.filtrele(60.0, 60.0)
+        filtre.sifirla()
+
+        self.assertIsNone(filtre.son_filtrelenmis_x)
+        self.assertIsNone(filtre.son_filtrelenmis_y)
+        p_yeni = filtre.filtrele(200.0, 200.0)
+        self.assertEqual(p_yeni.x, 200.0)
+        self.assertEqual(p_yeni.y, 200.0)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ from .config import ConfigManager, logger, APP_DIR, setup_logging
 from .storage import NotebookManager, metin_ekleme_bicimlendir
 from .engine import RecognitionEngine, WindowsInkRecognizer, GeminiVisionRecognizer, gemini_metin_ayristir
 from .gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi
+from .filter import TitremeFiltresi
 
 try:
     from .tray import TrayManager
@@ -33,6 +34,7 @@ __all__ = [
     "gemini_metin_ayristir",
     "karalama_jesti_mi",
     "dikey_cizgi_jesti_mi",
+    "TitremeFiltresi",
     "TrayManager",
     "ArkaPlanNotDonusturucu",
     "main",

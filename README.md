@@ -23,6 +23,10 @@
   - Handwriting drawings are **never** transmitted to Google Cloud without explicit user confirmation via an interactive GUI dialog (`tkinter.messagebox.askyesno`).
 - **⌨️ Natural Word-Spaced Auto-Type:**
   - Recognized words automatically append trailing whitespace when pasted into your active application (Word, Notion, VS Code, Browser), preventing consecutive handwritten words from sticking together.
+- **🎯 Smart Jitter & Tremor Reduction (Adaptive Low-Pass Filter):**
+  - Eliminates digitizer sensor noise and hand jitter on budget drawing tablets (VEIKK, XP-Pen, Huion) using speed-adaptive dynamic low-pass filtering.
+  - Aggressively filters micro-tremors at slow writing speeds for clean letter curves, while scaling to zero latency during fast flicks and crosses.
+  - Delivers a smooth, natural ballpoint pen feel and significantly improves Windows Ink / OCR recognition accuracy.
 - **💬 Live 2-Line Note Preview & Floating Toast Notifications:**
   - Displays the last 2 recognized notes directly on the pad's footer in real-time.
   - Automatically loads and displays the latest notes whenever you switch between notebooks.

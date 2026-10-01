@@ -24,6 +24,7 @@ except ImportError:
 
 from .config import APP_DIR, DEBUG_KAYDET, logger, ConfigManager, setup_logging
 from .gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi
+from .filter import TitremeFiltresi
 from .storage import NotebookManager
 from .engine import RecognitionEngine
 from .tray import TrayManager
@@ -82,9 +83,10 @@ class ArkaPlanNotDonusturucu:
         self.root.wm_attributes("-topmost", True)
         self.pencere_boyutunu_guncelle()
 
-        # Windows Ink Vuruş Konteynerleri
+        # Windows Ink Vuruş Konteynerleri ve Titreme Filtresi
         self.stroke_builder = inking.InkStrokeBuilder() if inking else None
         self.stroke_container = inking.InkStrokeContainer() if inking else None
+        self.titreme_filtresi = TitremeFiltresi(aktif=getattr(self.config, 'titreme_filtresi_aktif', True))
         self.aktif_noktalar = []
         self.tum_stroke_noktalari = []
         self.stroke_baslangic_zamani = 0
@@ -598,6 +600,7 @@ class ArkaPlanNotDonusturucu:
         self.image = Image.new("RGB", (w, h), "white")
         self.draw = ImageDraw.Draw(self.image)
         self.stroke_container = inking.InkStrokeContainer() if inking else None
+        self.titreme_filtresi.sifirla()
         self.tum_stroke_noktalari = []
         self.cizim_yapildi = False
         if self.yazma_modu_aktif:
@@ -646,14 +649,15 @@ class ArkaPlanNotDonusturucu:
             self.debounce_timer_id = None
 
         self.kalem_basili = True
-        self.son_x, self.son_y = event.x, event.y
+        pt = self.titreme_filtresi.baslat(event.x, event.y)
+        self.son_x, self.son_y = pt.x, pt.y
         self.son_yazma_zamani = time.time()
         self.stroke_baslangic_zamani = time.time()
 
-        self.aktif_noktalar = [Point(float(event.x), float(event.y))]
+        self.aktif_noktalar = [Point(float(pt.x), float(pt.y))]
 
         r = 1.5 if not self.tam_ekran_mi else 2.5
-        self.draw.ellipse([event.x - r, event.y - r, event.x + r, event.y + r], fill="black")
+        self.draw.ellipse([pt.x - r, pt.y - r, pt.x + r, pt.y + r], fill="black")
 
     def fare_hareket(self, event):
         if self.boyutlandiriliyor:
@@ -675,21 +679,26 @@ class ArkaPlanNotDonusturucu:
         if not self.kalem_basili:
             return
 
+        # Titreme Filtresi: Mikro sensör parazitlerini eler, hareketi pürüzsüzleştirir
+        pt = self.titreme_filtresi.filtrele(event.x, event.y)
+        if pt is None:
+            return
+
         cizgi_w = 3 if not self.tam_ekran_mi else 5
         r = 1.5 if not self.tam_ekran_mi else 2.5
 
         if self.son_x is not None and self.son_y is not None:
             self.canvas.create_line(
-                self.son_x, self.son_y, event.x, event.y,
+                self.son_x, self.son_y, pt.x, pt.y,
                 fill="#00ffcc", width=cizgi_w, capstyle=tk.ROUND, joinstyle=tk.ROUND, smooth=True,
                 tags=("cizim", "stroke_current")
             )
-            self.draw.line([self.son_x, self.son_y, event.x, event.y], fill="black", width=cizgi_w)
-            self.draw.ellipse([event.x - r, event.y - r, event.x + r, event.y + r], fill="black")
+            self.draw.line([self.son_x, self.son_y, pt.x, pt.y], fill="black", width=cizgi_w)
+            self.draw.ellipse([pt.x - r, pt.y - r, pt.x + r, pt.y + r], fill="black")
 
-            self.aktif_noktalar.append(Point(float(event.x), float(event.y)))
+            self.aktif_noktalar.append(Point(float(pt.x), float(pt.y)))
 
-        self.son_x, self.son_y = event.x, event.y
+        self.son_x, self.son_y = pt.x, pt.y
         self.son_yazma_zamani = time.time()
 
     def jestleri_kontrol_et(self):
@@ -762,6 +771,7 @@ class ArkaPlanNotDonusturucu:
             return
 
         self.kalem_basili = False
+        self.titreme_filtresi.sifirla()
         self.son_x, self.son_y = None, None
         self.son_yazma_zamani = time.time()
 

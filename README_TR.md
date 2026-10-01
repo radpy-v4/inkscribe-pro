@@ -22,6 +22,10 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
   - El yazısı görüntüleri, kullanıcıdan grafik onay diyaloğu (`tkinter.messagebox.askyesno`) alınmadıkça **asla** Google sunucularına gönderilmez; onay verilene kadar uygulama %100 çevrimdışı yerel modda kalır.
 - **⌨️ Doğal Kelime Boşluklu Auto-Type:**
   - Dönüştürülen her kelime aktif uygulamanıza (Word, Notion, VS Code vb.) yapıştırılırken kelime sonuna otomatik boşluk eklenir; böylece kelimeler birbirine yapışmaz, doğal daktilo gibi aralıklı yazılır.
+- **🎯 Titreme Önleme & Kalem Yumuşatma Filtresi (Jitter & Tremor Filter):**
+  - Düşük maliyetli grafik tabletlerdeki (VEIKK, XP-Pen, Huion vb.) sensör parazitlerini ve el titremelerini hıza duyarlı dinamik filtre (Adaptive Low-Pass) ile yok eder.
+  - Yavaş yazarken mikro testere dişi dalgalanmaları süzer; hızlı vuruşlarda gecikmeyi (latency) sıfıra indirerek kalemin ucunu anında takip eder.
+  - Dijital çizgiye pürüzsüz tükenmez kalem akıcılığı kazandırır, OCR ve Windows Ink tanıma doğruluğunu belirgin şekilde artırır.
 - **💬 Canlı 2 Satır Not Önizlemesi & Çakışmasız Toast Bildirimleri:**
   - Dönüştürülen son 2 notu pedin altındaki şık şeritte anlık olarak görüntüler.
   - Defterler arasında geçiş yapıldığında ilgili defterdeki son notları otomatik olarak yükler.

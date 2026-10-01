@@ -84,6 +84,7 @@ class ConfigManager:
         self.ai_modu_aktif = True
         self.ai_onay_verildi = False
         self.ai_consent_gosterildi = False
+        self.titreme_filtresi_aktif = True
         self.hotkey_toggle = "<f8>"
         self.hotkey_fullscreen = "<f9>"
         self.thinking_desteklemeyenler = set()
@@ -144,6 +145,7 @@ class ConfigManager:
                         self.hotkey_fullscreen = cfg.get("hotkey_fullscreen", self.hotkey_fullscreen)
                         self.ai_onay_verildi = bool(cfg.get("ai_onay_verildi", self.ai_onay_verildi))
                         self.ai_consent_gosterildi = cfg.get("ai_consent_gosterildi", self.ai_consent_gosterildi)
+                        self.titreme_filtresi_aktif = bool(cfg.get("titreme_filtresi_aktif", self.titreme_filtresi_aktif))
 
                         loaded_model = cfg.get("gemini_model", self.gemini_model)
                         # Sadece fiilen kapanmış veya aşırı kotalı eski modelleri yükselt
@@ -183,6 +185,7 @@ class ConfigManager:
                 "ai_modu_aktif": self.ai_modu_aktif,
                 "ai_onay_verildi": self.ai_onay_verildi,
                 "ai_consent_gosterildi": self.ai_consent_gosterildi,
+                "titreme_filtresi_aktif": self.titreme_filtresi_aktif,
                 "thinking_desteklemeyenler": sorted(list(self.thinking_desteklemeyenler)),
                 "aciklama": "ai_modu_aktif true iken Gemini Vision modeli kullanılır. Model yanıt vermezse anında offline Windows Ink motoruna düşer."
             }

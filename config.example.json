@@ -11,6 +11,7 @@
     "hotkey_toggle": "<f8>",
     "hotkey_fullscreen": "<f9>",
     "ai_modu_aktif": true,
+    "titreme_filtresi_aktif": true,
     "aciklama": "ai_modu_aktif true iken Gemini Vision modeli kullanılır. Model yanıt vermezse anında offline Windows Ink motoruna düşer."
 }
 
