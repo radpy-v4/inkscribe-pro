@@ -56,10 +56,27 @@ jobs:
           path: dist/TabletNotAlici.exe
           if-no-files-found: error
 
+      - name: Package Release Assets (On Tag Push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $zipPath = "dist/InkScribe-Pro-${tag}-windows-x64.zip"
+          Compress-Archive -Path dist/TabletNotAlici.exe, config.example.json, README_TR.md, README.md, LICENSE -DestinationPath $zipPath -Force
+          $exeHash = (Get-FileHash dist/TabletNotAlici.exe -Algorithm SHA256).Hash
+          $zipHash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
+          @"
+          # InkScribe Pro $tag - SHA256 Checksums
+          $exeHash *TabletNotAlici.exe
+          $zipHash *InkScribe-Pro-${tag}-windows-x64.zip
+          "@ | Set-Content dist/SHA256SUMS.txt -Encoding UTF8
+
       - name: Release (On Tag Push)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/TabletNotAlici.exe
+          files: |
+            dist/TabletNotAlici.exe
+            dist/InkScribe-Pro-*-windows-x64.zip
+            dist/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
