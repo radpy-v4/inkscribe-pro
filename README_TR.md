@@ -72,6 +72,10 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 - **İşletim Sistemi:** Windows 10 veya Windows 11
 - **Python:** 3.10 veya üzeri
 - **Grafik Tablet veya Stylus:** VEIKK, Wacom, Huion, XP-Pen veya Windows Dokunmatik/Kalem uyumlu ekranlar.
+  > 💡 **Önerilen Tablet Sürücü Ayarları (VEIKK, XP-Pen, Huion, Wacom):**  
+  > 1. **Windows Ink:** Sürücü panelinde **"Windows Ink"** (veya **"Windows Mürekkep"**) seçeneğini mutlaka işaretleyin (gecikmesiz ve pürüzsüz yazı altyapısı için gereklidir).  
+  > 2. **Ekran Eşleme (Screen Mapping):** **"Tam Ekran (Full Screen / Ekran 1)"** seçilmelidir. *(Çoklu monitör kullanıyorsanız "Tüm Ekranlar" yerine yalnızca not aldığınız monitörü seçin; aksi takdirde yatay harf oranı basıklaşır).*  
+  > 3. **Tablet Alanı ve Modu:** Çalışma alanını **"Tam Alan (Full Area)"** ve imleç türünü **"Kalem Modu (Pen / Absolute Mode)"** olarak seçin. *(Varsa "Oranı Koru / Keep Aspect Ratio" seçeneğini açmanız 1:1 doğal çizim hissi sağlar).*
 - *(Önerilen)* Windows Türkçe el yazısı dil paketinin kurulu olduğundan emin olun:
   > *Ayarlar > Zaman ve Dil > Dil ve Bölge > Türkçe > Seçenekler > **El Yazısı**.*
 

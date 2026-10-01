@@ -72,6 +72,10 @@
 - **OS:** Windows 10 or Windows 11
 - **Python:** 3.10 or higher
 - **Graphics Tablet or Stylus:** Wacom, VEIKK, XP-Pen, Huion, or any Windows Pen/Touch compatible device.
+  > 💡 **Recommended Tablet Driver Settings (VEIKK, XP-Pen, Huion, Wacom):**  
+  > 1. **Windows Ink:** Ensure the **"Windows Ink"** checkbox is enabled in your tablet driver settings (essential for low-latency digitizer integration and smooth handwriting).  
+  > 2. **Screen Mapping:** Set to **"Full Screen (Display 1)"**. *(If using dual/multi-monitors, select the specific active monitor rather than "All Displays" to prevent horizontal aspect ratio distortion).*  
+  > 3. **Tablet Area & Mode:** Set tablet area to **"Full Area"** and cursor type to **"Pen / Absolute Mode"** (avoid Mouse/Relative mode). Enable **"Keep Aspect Ratio"** if available for 1:1 geometric drawing fidelity.
 - *(Recommended)* Ensure your language handwriting pack is installed in Windows:
   > *Settings > Time & Language > Language & Region > Preferred Language > Options > **Handwriting**.*
 
