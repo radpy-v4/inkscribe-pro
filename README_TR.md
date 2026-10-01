@@ -139,9 +139,20 @@ python -m unittest tests/test_logic.py
 
 ## 📦 Bağımsız EXE (.exe) Olarak Derleme
 
-```bash
-pyinstaller TabletNotAlici.spec
+Projeyi tek tıklamayla veya komut satırından derlemek için hazırlanan derleme scriptlerini kullanabilirsiniz (önce testleri çalıştırır, ardından tek dosya `.exe` üretir):
+
+```cmd
+:: Windows CMD / Çift Tıklama
+build.bat
 ```
+
+veya PowerShell ile:
+
+```powershell
+.\build.ps1
+```
+
+*(Doğrudan PyInstaller ile çalıştırmak isterseniz: `pyinstaller TabletNotAlici.spec`)*
 
 Derlenen bağımsız tek parça çalıştırılabilir dosya `dist/TabletNotAlici.exe` altında oluşturulur. Standalone modda çalıştırıldığında ayarlar ve notlar `%APPDATA%\InkScribePro` klasöründe güvenle ve kalıcı olarak saklanır.
 

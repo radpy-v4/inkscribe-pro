@@ -134,11 +134,21 @@ python -m unittest tests/test_logic.py
 
 ## 📦 Build Standalone Executable (.exe)
 
-You can package the application into a standalone Windows binary using PyInstaller:
+You can package the application into a standalone Windows binary using the automated build scripts (which execute logic tests first and then compile the single-file executable):
 
-```bash
-pyinstaller TabletNotAlici.spec
+```cmd
+:: Windows CMD / Double Click
+build.bat
 ```
+
+or via PowerShell:
+
+```powershell
+.\build.ps1
+```
+
+*(Or directly via PyInstaller: `pyinstaller TabletNotAlici.spec`)*
+
 The compiled single-file executable will be located in `dist/TabletNotAlici.exe`. In standalone mode, user settings, notebooks, and logs are safely and persistently stored under `%APPDATA%\InkScribePro` to prevent temporary `_MEIPASS` data loss.
 
 ---
