@@ -5,6 +5,7 @@
 
 [🇹🇷 Türkçe Dokümantasyon](README_TR.md)
 
+[![CI & Tests](https://github.com/radpy-v4/inkscribe-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/radpy-v4/inkscribe-pro/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat&logo=windows&logoColor=white)](https://microsoft.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -94,9 +95,9 @@ Open `config.json` and insert your [Google AI Studio](https://aistudio.google.co
 ## 🏃 Run Application
 
 ```bash
-python hand_to_text.py
+python app.py
 ```
-*(For headless background execution without a console window, run `pythonw hand_to_text.py`).*
+*(For headless background execution without a console window, run `pythonw app.py`).*
 
 Press **`F8`** anywhere in Windows to bring up the notepad and start writing with your pen!
 
@@ -129,16 +130,16 @@ The codebase is organized into clean, single-responsibility modules:
 ```text
 TABLET_ELYAZİ/
 ├── src/
-│   ├── __init__.py      # Package indicator
+│   ├── __init__.py      # Package indicator & public API exports
 │   ├── config.py        # ConfigManager, persistent settings & Windows startup registry
 │   ├── engine.py        # RecognitionEngine: Windows Ink (Offline) & Gemini Vision (Online)
 │   ├── gestures.py      # Pure Scratch-out & Vertical Stroke (Enter) algorithms
 │   ├── storage.py       # NotebookManager, multi-notebooks & text formatting
 │   ├── tray.py          # TrayManager: System tray icon & desktop notifications
 │   └── ui.py            # ArkaPlanNotDonusturucu: Dual-mode UI, drawing canvas & workflow
-├── hand_to_text.py      # Backward-compatible main entry point
+├── app.py               # Lightweight main entry point
 ├── tests/
-│   └── test_logic.py    # Hardware-independent unit test suite
+│   └── test_logic.py    # Hardware-independent unit test suite (15 tests)
 ├── TabletNotAlici.spec  # PyInstaller build specification
 └── config.json          # User configuration
 ```

@@ -1,6 +1,9 @@
 import threading
 from PIL import Image, ImageDraw
-import pystray
+try:
+    import pystray
+except ImportError:
+    pystray = None
 from .config import logger
 
 
@@ -20,6 +23,10 @@ class TrayManager:
         return icon_img
 
     def baslat(self):
+        if pystray is None:
+            logger.warning("[Tepsi] pystray modülü yüklü olmadığı için sistem tepsisi başlatılamadı.")
+            return
+
         icon_img = self.icon_gorseli_uret()
 
         menu = pystray.Menu(

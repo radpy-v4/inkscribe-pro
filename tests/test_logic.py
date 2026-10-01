@@ -5,11 +5,20 @@ Bu testler GUI veya fiziksel tablet donanımı gerektirmeden saf Python ortamın
 
 import unittest
 import time
+import os
+import sys
+import tempfile
+import json
 from collections import namedtuple
+
+# Ensure repo root is on sys.path for direct pytest invocation
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
 
 from src.gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi
 from src.engine import gemini_metin_ayristir
-from src.storage import metin_ekleme_bicimlendir
+from src.storage import metin_ekleme_bicimlendir, NotebookManager
 from src.config import ConfigManager
 
 # foundation.Point benzeri hafif veri yapısı (testler için)
@@ -172,6 +181,40 @@ class TestTabletNotAliciMantik(unittest.TestCase):
 
         self.assertEqual(denenen, ["gemini-3.5-flash", "gemini-flash-latest"])
         self.assertEqual(basarili_model, "gemini-flash-latest")
+
+    def test_gestures_bos_veya_yetersiz_noktada_guvenli(self):
+        """Boş veya 1-2 noktalı jest girdileri exception fırlatmadan False dönmeli."""
+        self.assertFalse(karalama_jesti_mi([]))
+        self.assertFalse(karalama_jesti_mi([Point(10, 10)]))
+        self.assertFalse(karalama_jesti_mi([Point(10, 10), Point(20, 20)]))
+
+        self.assertFalse(dikey_cizgi_jesti_mi([], 0.1))
+        self.assertFalse(dikey_cizgi_jesti_mi([Point(10, 10)], 0.1))
+
+    def test_config_manager_gecersiz_model_otomatik_yukseltme(self):
+        """Eski model (örn. gemini-1.5-flash) kayıtlıysa ConfigManager otomatik gemini-3.5-flash'a güncellemeli."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cfg_path = os.path.join(tmp_dir, "config.json")
+            with open(cfg_path, "w", encoding="utf-8") as f:
+                json.dump({"gemini_model": "gemini-1.5-flash", "gemini_api_key": "TEST_KEY"}, f)
+
+            cfg = ConfigManager(app_dir=tmp_dir)
+            self.assertEqual(cfg.gemini_model, "gemini-3.5-flash")
+            self.assertEqual(cfg.gemini_api_key, "TEST_KEY")
+
+    def test_notebook_manager_gecis_ve_yeni_satir(self):
+        """NotebookManager defterler arasında geçiş yapabilmeli ve metinleri doğru deftere kaydetmeli."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            nb = NotebookManager(app_dir=tmp_dir)
+            self.assertEqual(nb.aktif_defter_adi, "Genel")
+
+            # Yapılacaklar defterine geç
+            nb.defter_sec(2)
+            self.assertEqual(nb.aktif_defter_adi, "Yapılacaklar")
+
+            nb.metin_kaydet("Market alışverişi yap")
+            son_satirlar = nb.son_satirlari_oku(5)
+            self.assertTrue(any("Market alışverişi yap" in s for s in son_satirlar))
 
 
 if __name__ == "__main__":

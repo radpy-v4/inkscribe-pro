@@ -105,7 +105,7 @@ class ConfigManager:
                 if not os.path.exists(pythonw_exe):
                     pythonw_exe = sys.executable
                 if not script_path:
-                    script_path = os.path.join(self.app_dir, "hand_to_text.py")
+                    script_path = os.path.join(self.app_dir, "app.py")
                 cmd = f'"{pythonw_exe}" "{script_path}"'
                 winreg.SetValueEx(key, REG_APP_NAME, 0, winreg.REG_SZ, cmd)
                 logger.info(f">> [Windows Başlangıç] Eklendi: {cmd}")

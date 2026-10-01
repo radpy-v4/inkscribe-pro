@@ -34,7 +34,7 @@ jobs:
 
       - name: Python Syntax & Compilation Check
         run: |
-          python -m py_compile hand_to_text.py
+          python -m py_compile app.py
 
       - name: Build Standalone Windows Executable
         run: |

@@ -2,6 +2,7 @@
 
 [English Documentation](README.md)
 
+[![CI & Tests](https://github.com/radpy-v4/inkscribe-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/radpy-v4/inkscribe-pro/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat&logo=windows&logoColor=white)](https://microsoft.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -56,6 +57,7 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 ## 🚀 Kurulum
 
 ### 1. Gereksinimler
+
 - **İşletim Sistemi:** Windows 10 veya Windows 11
 - **Python:** 3.10 veya üzeri
 - **Grafik Tablet veya Stylus:** VEIKK, Wacom, Huion, XP-Pen veya Windows Dokunmatik/Kalem uyumlu ekranlar.
@@ -63,21 +65,26 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
   > *Ayarlar > Zaman ve Dil > Dil ve Bölge > Türkçe > Seçenekler > **El Yazısı**.*
 
 ### 2. Projeyi Klonlayın
+
 ```bash
 git clone https://github.com/KULLANICI_ADINIZ/tablet-not-alici.git
 cd tablet-not-alici
 ```
 
 ### 3. Bağımlılıkları Yükleyin
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Yapılandırma (İsteğe Bağlı Gemini AI)
+
 ```bash
 copy config.example.json config.json
 ```
+
 `config.json` dosyasını açıp [Google AI Studio](https://aistudio.google.com/)'dan aldığınız **Gemini API anahtarınızı** ekleyebilirsiniz:
+
 ```json
 {
     "gemini_api_key": "API_ANAHTARINIZ",
@@ -85,6 +92,7 @@ copy config.example.json config.json
     "ai_modu_aktif": true
 }
 ```
+
 *(Dilerseniz anahtarı `GEMINI_API_KEY` ortam değişkeni olarak da tanımlayabilirsiniz. Anahtar girilmezse sistem 100% çevrimdışı Windows Ink motoruyla çalışır).*
 
 ---
@@ -92,15 +100,17 @@ copy config.example.json config.json
 ## 🏃‍♂️ Çalıştırma
 
 ```bash
-python hand_to_text.py
+python app.py
 ```
-*(Arka planda konsolsuz çalıştırmak için `pythonw hand_to_text.py` kullanabilirsiniz).*
+
+*(Arka planda konsolsuz çalıştırmak için `pythonw app.py` kullanabilirsiniz).*
 
 ---
 
 ## 🧪 Testleri Çalıştırma
 
 Donanımdan bağımsız birim ve mantık testlerini çalıştırmak için:
+
 ```bash
 pytest tests/test_logic.py -v
 ```
@@ -112,6 +122,7 @@ pytest tests/test_logic.py -v
 ```bash
 pyinstaller TabletNotAlici.spec
 ```
+
 Derlenen çalıştırılabilir dosya `dist/TabletNotAlici.exe` altında oluşturulur.
 
 ---
@@ -123,16 +134,16 @@ Proje, temiz ve sürdürülebilir bir Python modül yapısına sahiptir:
 ```text
 TABLET_ELYAZİ/
 ├── src/
-│   ├── __init__.py      # Paket tanımı
+│   ├── __init__.py      # Paket tanımı & public API dışa aktarımları
 │   ├── config.py        # ConfigManager, kalıcı ayarlar ve Windows başlangıç kaydı
 │   ├── engine.py        # RecognitionEngine: Windows Ink (Offline) & Gemini Vision (Online)
 │   ├── gestures.py      # Saf Karalama (Scratch-out) ve Dikey Çizgi (Enter) algoritmaları
 │   ├── storage.py       # NotebookManager, çoklu defterler ve metin biçimlendirme
 │   ├── tray.py          # TrayManager: Sistem tepsisi menüsü ve masaüstü bildirimleri
 │   └── ui.py            # ArkaPlanNotDonusturucu: Çift modlu arayüz, çizim tuvali ve iş akışı
-├── hand_to_text.py      # Geriye dönük uyumlu ana giriş noktası
+├── app.py               # Hafif ana giriş noktası
 ├── tests/
-│   └── test_logic.py    # Donanımdan bağımsız birim test paketi
+│   └── test_logic.py    # Donanımdan bağımsız birim test paketi (15 test)
 ├── TabletNotAlici.spec  # PyInstaller derleme spesifikasyonu
 └── config.json          # Kullanıcı yapılandırması
 ```

@@ -4,7 +4,10 @@ import threading
 import time
 import os
 import ctypes
-from pynput import keyboard
+try:
+    from pynput import keyboard
+except ImportError:
+    keyboard = None
 try:
     import winrt.windows.ui.input.inking as inking
     import winrt.windows.foundation as foundation
@@ -124,11 +127,14 @@ class ArkaPlanNotDonusturucu:
                 pass
             self.root.after(0, self.toggle_yazma_modu)
 
-        self.hotkey_listener = keyboard.GlobalHotKeys({
-            '<f8>': _f8_tetiklendi,
-            '<f9>': lambda: self.root.after(0, self.toggle_tam_ekran)
-        })
-        self.hotkey_listener.start()
+        if keyboard is not None:
+            self.hotkey_listener = keyboard.GlobalHotKeys({
+                '<f8>': _f8_tetiklendi,
+                '<f9>': lambda: self.root.after(0, self.toggle_tam_ekran)
+            })
+            self.hotkey_listener.start()
+        else:
+            self.hotkey_listener = None
 
         # Sistem Tepsisi
         self.tray.baslat()

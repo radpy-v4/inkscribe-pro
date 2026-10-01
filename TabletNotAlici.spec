@@ -10,8 +10,10 @@ tmp_ret = collect_all('pystray')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
+datas += [('src', 'src')]
+
 a = Analysis(
-    ['hand_to_text.py'],
+    ['app.py'],
     pathex=[],
     binaries=binaries,
     datas=datas,
