@@ -57,7 +57,10 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 | **`F9`** | Global (Her Zaman) | Yüzen Mini Pad ile Tam Ekran modu arasında geçiş yap |
 | **`[↶]` Butonu** | Mini Pad & Tam Ekran | Yanlışlıkla silinen veya karalanan çizimi anında geri al |
 | **`[Temizle]` Butonu** | Mini Pad & Tam Ekran | Tuvali temizle (Geri alınabilir tampona kaydeder) |
-| **`Hızlı Dikey Çizgi`** | Stylus / Kalem Jesti | Deftere yeni satır / Enter ekler (Tuvalde yazı varsa önce dönüştürür) |
+| **`[Tab ⇥]` Butonu** | Mini Pad & Tam Ekran | Aktif hedef uygulamaya anında Tab tuşu gönderir (Formlar/Hücreler arası geçiş) |
+| **`Enter Kancası (↵)`** | Stylus / Kalem Jesti | Klavyedeki Enter simgesi gibi aşağı inip sola dönerek (↵) veya dikey çizgiyle hedef uygulamaya ve deftere Enter basar |
+| **`Sağdan Sola Çizgi (←)`** | Stylus / Kalem Jesti | Son yazılan vuruşu geri alır; tuval boşsa silinen çizimi geri yükler veya aktif uygulamaya `Ctrl+Z` basar |
+| **`Soldan Sağa Çizgi (→)`** | Stylus / Kalem Jesti | Hedef uygulamaya Tab tuşu gönderir; tuvalde yazı varsa önce yapıştırır, ardından sonraki alana geçer |
 | **`Karalama Jesti`** | Stylus / Kalem Jesti | Çizimi silip ekranı temizler (↶ butonuyla geri alınabilir) |
 | **`Ctrl + Z`** | Tam Ekran Modu | Son silinen çizimi geri al |
 | **`Enter`** | Tam Ekran Modu | Beklemeden çizimi anında metne dönüştür |
@@ -78,8 +81,10 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 - **Grafik Tablet veya Stylus:** VEIKK, Wacom, Huion, XP-Pen veya Windows Dokunmatik/Kalem uyumlu ekranlar.
   > 💡 **Önerilen Tablet Sürücü Ayarları (VEIKK, XP-Pen, Huion, Wacom):**  
   > 1. **Windows Ink:** Sürücü panelinde **"Windows Ink"** (veya **"Windows Mürekkep"**) seçeneğini mutlaka işaretleyin (gecikmesiz ve pürüzsüz yazı altyapısı için gereklidir).  
-  > 2. **Ekran Eşleme (Screen Mapping):** **"Tam Ekran (Full Screen / Ekran 1)"** seçilmelidir. *(Çoklu monitör kullanıyorsanız "Tüm Ekranlar" yerine yalnızca not aldığınız monitörü seçin; aksi takdirde yatay harf oranı basıklaşır).*  
-  > 3. **Tablet Alanı ve Modu:** Çalışma alanını **"Tam Alan (Full Area)"** ve imleç türünü **"Kalem Modu (Pen / Absolute Mode)"** olarak seçin. *(Varsa "Oranı Koru / Keep Aspect Ratio" seçeneğini açmanız 1:1 doğal çizim hissi sağlar).*
+  > 2. **Ekran Eşleme (Screen Mapping):**
+  >    * **Tam Ekran Modu İçin:** "Tam Ekran (Full Screen / Ekran 1)" seçin.
+  >    * ⭐ **Yüzen Mini Pad İçin Altın İpucu (Birebir Eşleme):** Sürücünün *Mapping* sekmesinde ekran alanını doğrudan Mini Pad'in bulunduğu sağ alt alana (1080p için yaklaşık `X: 1009, Y: 607, W: 875, H: 406`), tablet alanını ise **Full Tablet (%100)** olarak eşleyin. Bu sayede tabletinizin tüm fiziksel alanı sadece yazı pad'ine odaklanır; kalemi sıkıştırmadan geniş geniş, gerçek bir kağıda yazar gibi ultra konforlu yazabilirsiniz.  
+  > 3. **Tablet Alanı ve Modu:** İmleç türünü **"Kalem Modu (Pen / Absolute Mode)"** olarak seçin. *(Varsa "Oranı Koru / Keep Aspect Ratio" seçeneğini açmanız 1:1 doğal çizim hissi sağlar).*
 - *(Önerilen)* Windows Türkçe el yazısı dil paketinin kurulu olduğundan emin olun:
   > *Ayarlar > Zaman ve Dil > Dil ve Bölge > Türkçe > Seçenekler > **El Yazısı**.*
 

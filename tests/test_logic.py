@@ -21,7 +21,13 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from src.gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi
+from src.gestures import (
+    karalama_jesti_mi,
+    dikey_cizgi_jesti_mi,
+    enter_kancasi_jesti_mi,
+    sagdan_sola_cizgi_jesti_mi,
+    soldan_saga_cizgi_jesti_mi
+)
 from src.filter import TitremeFiltresi
 from src.engine import gemini_metin_ayristir, GeminiVisionRecognizer
 from src.storage import metin_ekleme_bicimlendir, NotebookManager
@@ -63,12 +69,69 @@ class TestInkScribeMantik(unittest.TestCase):
         noktalar_enter = [Point(100, 50), Point(102, 80), Point(103, 110), Point(105, 150), Point(108, 200)]
         self.assertTrue(dikey_cizgi_jesti_mi(noktalar_enter, 0.20))
 
-        # Yavaş çizgi
-        self.assertFalse(dikey_cizgi_jesti_mi(noktalar_enter, 0.45))
+        # Yavaş çizgi (0.65s üzeri elenmeli)
+        self.assertFalse(dikey_cizgi_jesti_mi(noktalar_enter, 0.75))
 
         # Eğik çizgi
         noktalar_egik = [Point(100, 50), Point(120, 80), Point(140, 110), Point(160, 150), Point(180, 200)]
         self.assertFalse(dikey_cizgi_jesti_mi(noktalar_egik, 0.20))
+
+    def test_enter_kancasi_algilama(self):
+        """Aşağı inip sola dönen L (↵) hareketi Enter olarak başarıyla tanınmalı."""
+        # ↵ hareketi: (100, 50) -> aşağı iniş -> (105, 160) -> sola dönüş -> (40, 158)
+        noktalar_kanca = [
+            Point(100, 50),
+            Point(101, 80),
+            Point(102, 110),
+            Point(103, 140),
+            Point(105, 160),
+            Point(85, 161),
+            Point(65, 160),
+            Point(40, 158)
+        ]
+        self.assertTrue(enter_kancasi_jesti_mi(noktalar_kanca, 0.35))
+
+        # 'L' harfi gibi sağa dönen hareket elenmeli
+        noktalar_sag_l = [
+            Point(100, 50),
+            Point(101, 80),
+            Point(102, 110),
+            Point(103, 140),
+            Point(105, 160),
+            Point(125, 161),
+            Point(155, 160)
+        ]
+        self.assertFalse(enter_kancasi_jesti_mi(noktalar_sag_l, 0.35))
+
+        # Sola dönüşü olmayan sadece dikey çizgi elenmeli (kanca olamaz)
+        noktalar_duz = [Point(100, 50), Point(101, 80), Point(102, 110), Point(103, 150)]
+        self.assertFalse(enter_kancasi_jesti_mi(noktalar_duz, 0.20))
+
+    def test_sagdan_sola_cizgi_geri_al(self):
+        """Sağdan sola yatay çizgi (←) Geri Al jesti olarak başarıyla tanınmalı."""
+        noktalar_geri_al = [Point(200, 100), Point(160, 101), Point(120, 99), Point(80, 102), Point(40, 100)]
+        self.assertTrue(sagdan_sola_cizgi_jesti_mi(noktalar_geri_al, 0.25))
+
+        # Soldan sağa çizgi elenmeli
+        noktalar_ileri = [Point(40, 100), Point(80, 101), Point(120, 99), Point(160, 102), Point(200, 100)]
+        self.assertFalse(sagdan_sola_cizgi_jesti_mi(noktalar_ileri, 0.25))
+
+        # Dikey çizgi elenmeli
+        noktalar_dikey = [Point(100, 40), Point(101, 80), Point(99, 120), Point(100, 160)]
+        self.assertFalse(sagdan_sola_cizgi_jesti_mi(noktalar_dikey, 0.25))
+
+    def test_soldan_saga_cizgi_tab(self):
+        """Soldan sağa yatay çizgi (→) Tab jesti olarak başarıyla tanınmalı."""
+        noktalar_tab = [Point(40, 100), Point(80, 101), Point(120, 99), Point(160, 102), Point(200, 100)]
+        self.assertTrue(soldan_saga_cizgi_jesti_mi(noktalar_tab, 0.25))
+
+        # Sağdan sola çizgi elenmeli (Geri al, Tab değil)
+        noktalar_geri = [Point(200, 100), Point(160, 101), Point(120, 99), Point(80, 102), Point(40, 100)]
+        self.assertFalse(soldan_saga_cizgi_jesti_mi(noktalar_geri, 0.25))
+
+        # Dikey çizgi elenmeli
+        noktalar_dikey = [Point(100, 40), Point(101, 80), Point(99, 120), Point(100, 160)]
+        self.assertFalse(soldan_saga_cizgi_jesti_mi(noktalar_dikey, 0.25))
 
     def test_gestures_bos_veya_yetersiz_noktada_guvenli(self):
         """Boş veya 1-2 noktalı jest girdileri exception fırlatmadan False dönmeli."""
@@ -423,6 +486,7 @@ class TestInkSessionJestAkisi(unittest.TestCase):
         app.isleniyor = False
         app.yazma_modu_aktif = True
         app.bekleyen_yeni_satir = 0
+        app.bekleyen_tab = 0
         app.debounce_timer_id = None
         app.bekleme_suresi = 0.65
         app.otomatik_enter = False

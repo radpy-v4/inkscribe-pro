@@ -58,7 +58,10 @@
 | **`F9`** | Global (Always) | Switch between Floating Mini Pad and Full-Screen Mode |
 | **`[↶]` Button** | Mini Pad & Full-Screen | Undo last cleared or scratched-out drawing |
 | **`[Temizle]` Button** | Mini Pad & Full-Screen | Clear canvas (saved to undo buffer) |
-| **`Vertical Flick`** | Stylus / Pen Gesture | Add new line / Enter in active notebook (converts text first if written) |
+| **`[Tab ⇥]` Button** | Mini Pad & Full-Screen | Send immediate Tab key to active target window (jump to next form field / cell) |
+| **`Enter Hook (↵)`** | Stylus / Pen Gesture | Draw a downward stroke turning left (↵) or vertical flick to send Enter to target app & notebook |
+| **`Strike-left (←)`** | Stylus / Pen Gesture | Quick right-to-left stroke to undo last drawn stroke, restore cleared canvas, or send `Ctrl+Z` |
+| **`Flick-right (→)`** | Stylus / Pen Gesture | Quick left-to-right stroke to send Tab key to active app (pastes written text first if present) |
 | **`Scratch-out`** | Stylus / Pen Gesture | Erase stroke and clear pad (recoverable via ↶ button) |
 | **`Ctrl + Z`** | Full-Screen Mode | Undo last cleared drawing |
 | **`Enter`** | Full-Screen Mode | Convert drawing to text immediately |
@@ -78,8 +81,10 @@
 - **Graphics Tablet or Stylus:** Wacom, VEIKK, XP-Pen, Huion, or any Windows Pen/Touch compatible device.
   > 💡 **Recommended Tablet Driver Settings (VEIKK, XP-Pen, Huion, Wacom):**  
   > 1. **Windows Ink:** Ensure the **"Windows Ink"** checkbox is enabled in your tablet driver settings (essential for low-latency digitizer integration and smooth handwriting).  
-  > 2. **Screen Mapping:** Set to **"Full Screen (Display 1)"**. *(If using dual/multi-monitors, select the specific active monitor rather than "All Displays" to prevent horizontal aspect ratio distortion).*  
-  > 3. **Tablet Area & Mode:** Set tablet area to **"Full Area"** and cursor type to **"Pen / Absolute Mode"** (avoid Mouse/Relative mode). Enable **"Keep Aspect Ratio"** if available for 1:1 geometric drawing fidelity.
+  > 2. **Screen Mapping:**
+  >    * **For Full-Screen Mode:** Set to **"Full Screen (Display 1)"**. *(If using dual/multi-monitors, select the specific active monitor rather than "All Displays" to prevent horizontal aspect ratio distortion).*  
+  >    * ⭐ **Pro-Tip for Floating Mini Pad (1:1 Pad Mapping):** In your tablet driver's *Mapping* tab, map the active screen area directly to the Mini Pad's desktop bounding box (for 1080p: approx `X: 1009, Y: 607, W: 875, H: 406`), with Tablet Area set to **Full Tablet (100%)**. This dedicates your entire physical tablet surface solely to the writing canvas, providing a natural, pen-on-paper feel with maximum precision.  
+  > 3. **Tablet Area & Mode:** Set cursor type to **"Pen / Absolute Mode"** (avoid Mouse/Relative mode). Enable **"Keep Aspect Ratio"** if available for 1:1 geometric drawing fidelity.
 - *(Recommended)* Ensure your language handwriting pack is installed in Windows:
   > *Settings > Time & Language > Language & Region > Preferred Language > Options > **Handwriting**.*
 

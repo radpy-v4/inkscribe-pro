@@ -23,7 +23,7 @@ except ImportError:
 
 
 from .config import APP_DIR, DEBUG_KAYDET, logger, ConfigManager, setup_logging
-from .gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi
+from .gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi, enter_kancasi_jesti_mi, sagdan_sola_cizgi_jesti_mi, soldan_saga_cizgi_jesti_mi
 from .filter import TitremeFiltresi
 from .storage import NotebookManager
 from .engine import RecognitionEngine
@@ -100,6 +100,7 @@ class ArkaPlanNotDonusturucu:
         self.surukleniyor = False
         self.cizim_yapildi = False
         self.bekleyen_yeni_satir = 0
+        self.bekleyen_tab = 0
         self.debounce_timer_id = None
 
         # Odak takibi ve Toast
@@ -192,7 +193,7 @@ class ArkaPlanNotDonusturucu:
         logger.info(f"      [{hk_t_str}] = Not Pedini Göster/Gizle")
         logger.info(f"      [{hk_f_str}] = Yüzen Mini Pad / Tam Ekran Değiştir")
         logger.info("      [↶ / Buton] = Silinen Çizimi Geri Al")
-        logger.info("      Jestler: Karalama = Temizle, Hızlı Dikey Çizgi = Enter / Yeni Satır.")
+        logger.info("      Jestler: Karalama = Temizle, Enter (↵), Geri Al (←), Tab (→).")
 
         # Başlangıç denetimleri (notes_dir fallback uyarısı ve AI gizlilik onayı)
         self.root.after(400, self._baslangic_kontrolleri)
@@ -498,6 +499,7 @@ class ArkaPlanNotDonusturucu:
             self._buton_ciz(w - 105, 15, 42, 32, "⛶", "#94a3b8", "mod_degistir", bg_renk="#334155")
             self._buton_ciz(w - 155, 15, 42, 32, "↶", "#38bdf8", "geri_al", bg_renk="#0369a1")
             self._buton_ciz(w - 215, 15, 52, 32, "Temizle", "#f59e0b", "temizle", bg_renk="#78350f")
+            self._buton_ciz(w - 275, 15, 54, 32, "Tab ⇥", "#a78bfa", "tab_bas", bg_renk="#4c1d95")
             return
 
         # Yüzen Mini Pad Üst Başlık Çubuğu
@@ -521,6 +523,7 @@ class ArkaPlanNotDonusturucu:
         ai_icon = "⚡ AI: Açık" if self.config.ai_modu_aktif else "💻 AI: Kapalı"
         ai_bg = "#065f46" if self.config.ai_modu_aktif else "#374151"
         ai_renk = "#34d399" if self.config.ai_modu_aktif else "#9ca3af"
+        self._buton_ciz(w - 335, 8, 50, 26, "Tab ⇥", "#a78bfa", "tab_bas", bg_renk="#4c1d95", font_size=8)
         self._buton_ciz(w - 280, 8, 75, 26, ai_icon, ai_renk, "toggle_ai", bg_renk=ai_bg, font_size=8)
 
         self._buton_ciz(w - 195, 8, 32, 26, "↶", "#38bdf8", "geri_al", bg_renk="#0369a1", font_size=10)
@@ -572,6 +575,9 @@ class ArkaPlanNotDonusturucu:
                         self.ekrani_temizle(yedekle=True)
                     elif komut == "geri_al":
                         self.geri_al()
+                    elif komut == "tab_bas":
+                        threading.Thread(target=self._arka_planda_tab_bas, args=(1,), daemon=True).start()
+                        self.alt_cubuk_gecici_mesaj("⇥ Tab tuşu basıldı.")
                     elif komut == "mod_degistir":
                         self.toggle_tam_ekran()
                     elif komut == "toggle_ai":
@@ -649,6 +655,17 @@ class ArkaPlanNotDonusturucu:
                 pass
             self.debounce_timer_id = None
 
+        # Aktif hedef pencereyi kaydet (NoActivate modunda dahi tuş gönderebilmek için)
+        if user32:
+            try:
+                cur_hwnd = user32.GetForegroundWindow()
+                my_hwnd = self.root.winfo_id()
+                parent_hwnd = user32.GetParent(my_hwnd) if my_hwnd else None
+                if cur_hwnd and cur_hwnd not in (my_hwnd, parent_hwnd):
+                    self.son_hedef_hwnd = cur_hwnd
+            except Exception:
+                pass
+
         self.kalem_basili = True
         tf = getattr(self, 'titreme_filtresi', None)
         pt = tf.baslat(event.x, event.y) if tf else Point(float(event.x), float(event.y))
@@ -707,46 +724,144 @@ class ArkaPlanNotDonusturucu:
     def jestleri_kontrol_et(self):
         gecen_sure = time.time() - self.stroke_baslangic_zamani
 
-        # 1. Hızlı dikey çizgi (Enter / Yeni Satır - DPI duyarlı eşikler)
+        # 1. Enter / Yeni Satır Jesti (Öncelikli: Enter Kancası ↵, Yedek: Dikey Fiske)
         scale = getattr(self, 'dpi_scale', 1.0)
-        dy_min = int(130 * scale)
-        dx_max = int(30 * scale)
-        if dikey_cizgi_jesti_mi(self.aktif_noktalar, gecen_sure, dy_min=dy_min, dx_max=dx_max):
-            logger.info(">> [JEST] Hızlı Dikey Çizgi: Enter (Yeni Satır)!")
+        dy_min = int(70 * scale)
+        dx_max = int(45 * scale)
+
+        enter_tetiklendi = False
+        jest_adi = ""
+
+        if enter_kancasi_jesti_mi(self.aktif_noktalar, gecen_sure, scale=scale):
+            enter_tetiklendi = True
+            jest_adi = "Enter Kancası (↵)"
+        elif dikey_cizgi_jesti_mi(self.aktif_noktalar, gecen_sure, dy_min=dy_min, dx_max=dx_max):
+            enter_tetiklendi = True
+            jest_adi = "Dikey Çizgi"
+
+        if enter_tetiklendi:
+            logger.info(f">> [JEST] {jest_adi}: Enter (Yeni Satır)!")
             self.canvas.delete("stroke_current")
             self.aktif_noktalar = []
 
-            # Görüntüdeki dikey çizgi izini derhal sil ve yalnızca onaylanmış vuruşları koru
+            # Görüntüdeki jest izini derhal sil ve yalnızca onaylanmış vuruşları koru
             self.image = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
             self.draw = ImageDraw.Draw(self.image)
 
             onceki_yazi_var = bool(self.tum_stroke_noktalari)
 
             if self.isleniyor:
-                # Arka planda dönüşüm sürerken dikey çizgi çekildi: sadece yeni satırı sıraya al
+                # Arka planda dönüşüm sürerken jest çekildi: sadece yeni satırı sıraya al
                 self.bekleyen_yeni_satir += 1
-                logger.info(">> [JEST] Dönüşüm sürerken dikey çizgi: Yeni satır kuyruğa eklendi.")
+                logger.info(f">> [JEST] Dönüşüm sürerken {jest_adi}: Yeni satır kuyruğa eklendi.")
                 return True
 
             if onceki_yazi_var:
                 # Tuvalde halihazırda yazılmış metin var:
                 self.bekleyen_yeni_satir += 1
-                logger.info(">> [JEST] Yazılmış metin tespit edildi; önce metin dönüştürülecek, ardından yeni satır eklenecek.")
+                logger.info(f">> [JEST] Yazılmış metin tespit edildi; önce metin dönüştürülecek, ardından {jest_adi} basılacak.")
                 self.tetikle_donusturme()
             else:
-                # Tuval boştu (öncesinde yazı yoktu): doğrudan yeni satır ekle
+                # Tuval boştu: doğrudan yeni satır ekle ve hedef pencereye Enter bas
                 self.bekleyen_yeni_satir += 1
                 adet = self.bekleyen_yeni_satir
                 self.bekleyen_yeni_satir = 0
                 for _ in range(adet):
                     self.storage.yeni_satir_ekle()
-                if self.otomatik_enter:
-                    threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
+                threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
                 self.ekrani_temizle(yedekle=False)
 
             return True
 
-        # 2. Karalama ile Silme Jesti (Scratch-out)
+        # 2. Geri Al Jesti (Sağdan Sola Yatay Çizgi ←)
+        if sagdan_sola_cizgi_jesti_mi(self.aktif_noktalar, gecen_sure, scale=scale):
+            logger.info(">> [JEST] Sağdan Sola Çizgi (←): Geri Al (Undo)!")
+            self.canvas.delete("stroke_current")
+            self.aktif_noktalar = []
+
+            # Görüntüdeki jest izini sil
+            self.image = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
+            self.draw = ImageDraw.Draw(self.image)
+
+            # Durum 1: Tuvalde aktif çizim varsa son vuruşu geri al
+            if self.tum_stroke_noktalari:
+                self.tum_stroke_noktalari.pop()
+                self.image = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
+                self.draw = ImageDraw.Draw(self.image)
+
+                # Tuvali baştan çiz
+                self.canvas.delete("cizim")
+                cizgi_w = 3 if not self.tam_ekran_mi else 5
+                for stroke in self.tum_stroke_noktalari:
+                    for i in range(1, len(stroke)):
+                        p1, p2 = stroke[i - 1], stroke[i]
+                        self.canvas.create_line(
+                            p1.x, p1.y, p2.x, p2.y,
+                            fill="#00ffcc", width=cizgi_w, capstyle=tk.ROUND, joinstyle=tk.ROUND, smooth=True,
+                            tags="cizim"
+                        )
+
+                # Windows Ink container senkronizasyonu
+                if inking and self.stroke_builder:
+                    self.stroke_container = inking.InkStrokeContainer()
+                    for stroke in self.tum_stroke_noktalari:
+                        try:
+                            s = self.stroke_builder.create_stroke(stroke)
+                            self.stroke_container.add_stroke(s)
+                        except Exception:
+                            pass
+
+                if not self.tum_stroke_noktalari:
+                    self.cizim_yapildi = False
+                    if self.debounce_timer_id:
+                        try:
+                            self.root.after_cancel(self.debounce_timer_id)
+                        except Exception:
+                            pass
+                        self.debounce_timer_id = None
+                else:
+                    self._debounce_kur()
+
+                self.alt_cubuk_gecici_mesaj("↶ Son çizgi geri alındı.")
+                logger.info(">> [Geri Al] Tuvaldeki son çizim vuruşu geri alındı.")
+                return True
+
+            # Durum 2: Tuvalde aktif çizim yoksa silinmiş çizimi geri yükle (veya aktif uygulamada Ctrl+Z)
+            if getattr(self, 'son_silinen_resim', None):
+                self.geri_al()
+            else:
+                threading.Thread(target=self._arka_planda_ctrl_z_bas, daemon=True).start()
+                self.alt_cubuk_gecici_mesaj("↶ Geri Al (Ctrl + Z)")
+
+            return True
+
+        # 3. Tab Jesti (Soldan Sağa Yatay Çizgi →)
+        if soldan_saga_cizgi_jesti_mi(self.aktif_noktalar, gecen_sure, scale=scale):
+            logger.info(">> [JEST] Soldan Sağa Çizgi (→): Tab Tuşu!")
+            self.canvas.delete("stroke_current")
+            self.aktif_noktalar = []
+
+            self.image = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
+            self.draw = ImageDraw.Draw(self.image)
+
+            onceki_yazi_var = bool(self.tum_stroke_noktalari)
+
+            if self.isleniyor:
+                self.bekleyen_tab += 1
+                logger.info(">> [JEST] Dönüşüm sürerken Tab: Kuyruğa eklendi.")
+                return True
+
+            if onceki_yazi_var:
+                self.bekleyen_tab += 1
+                logger.info(">> [JEST] Yazılmış metin tespit edildi; önce metin dönüştürülecek, ardından Tab basılacak.")
+                self.tetikle_donusturme()
+            else:
+                threading.Thread(target=self._arka_planda_tab_bas, args=(1,), daemon=True).start()
+                self.alt_cubuk_gecici_mesaj("⇥ Tab tuşu basıldı.")
+
+            return True
+
+        # 4. Karalama ile Silme Jesti (Scratch-out)
         if karalama_jesti_mi(self.aktif_noktalar):
             logger.info(">> [JEST] Karalama: Ekran temizlendi! (Geri almak için ↶ butonu)")
             self.canvas.delete("stroke_current")
@@ -916,8 +1031,11 @@ class ArkaPlanNotDonusturucu:
             self.bekleyen_yeni_satir = 0
             for _ in range(adet):
                 self.storage.yeni_satir_ekle()
-            if self.otomatik_enter:
-                threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
+            threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
+        if self.bekleyen_tab > 0:
+            adet = self.bekleyen_tab
+            self.bekleyen_tab = 0
+            threading.Thread(target=self._arka_planda_tab_bas, args=(adet,), daemon=True).start()
         self._debounce_kur()
 
     def panoya_ve_dosyaya_aktar(self, metin):
@@ -945,6 +1063,8 @@ class ArkaPlanNotDonusturucu:
 
             enter_adet = self.bekleyen_yeni_satir
             self.bekleyen_yeni_satir = 0
+            tab_adet = self.bekleyen_tab
+            self.bekleyen_tab = 0
             self.isleniyor = False
 
             if enter_adet > 0:
@@ -954,11 +1074,15 @@ class ArkaPlanNotDonusturucu:
             if self.yazma_modu_aktif:
                 self.root.after(0, self.butonlari_ciz)
 
-            gonderilecek_enter = enter_adet if self.otomatik_enter else 0
+            # Kullanıcı jest yaptıysa enter_adet basılır. Genel otomatik_enter açıksa en az 1 enter basılır.
+            gonderilecek_enter = enter_adet + (1 if (self.otomatik_enter and enter_adet == 0) else 0)
             if self.otomatik_yapistir and pano_basarili:
-                threading.Thread(target=self._arka_planda_yapistir_ve_enter, args=(gonderilecek_enter,), daemon=True).start()
-            elif not self.otomatik_yapistir and gonderilecek_enter > 0:
-                threading.Thread(target=self._arka_planda_enter_bas, args=(gonderilecek_enter,), daemon=True).start()
+                threading.Thread(target=self._arka_planda_yapistir_ve_enter, args=(gonderilecek_enter, tab_adet), daemon=True).start()
+            else:
+                if gonderilecek_enter > 0:
+                    threading.Thread(target=self._arka_planda_enter_bas, args=(gonderilecek_enter,), daemon=True).start()
+                if tab_adet > 0:
+                    threading.Thread(target=self._arka_planda_tab_bas, args=(tab_adet,), daemon=True).start()
 
         finally:
             self.isleniyor = False
@@ -969,7 +1093,7 @@ class ArkaPlanNotDonusturucu:
             return
         time.sleep(0.05)
         try:
-            if user32 and self.tam_ekran_mi and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
+            if user32 and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
                 user32.SetForegroundWindow(self.son_hedef_hwnd)
                 time.sleep(0.05)
             kb = keyboard.Controller()
@@ -981,12 +1105,12 @@ class ArkaPlanNotDonusturucu:
         except Exception as e:
             logger.error(f"Auto-Enter Hatası: {e}")
 
-    def _arka_planda_yapistir_ve_enter(self, enter_adet=0):
+    def _arka_planda_yapistir_ve_enter(self, enter_adet=0, tab_adet=0):
         if keyboard is None:
             return
         time.sleep(0.12)
         try:
-            if user32 and self.tam_ekran_mi and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
+            if user32 and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
                 user32.SetForegroundWindow(self.son_hedef_hwnd)
                 time.sleep(0.08)
 
@@ -1003,8 +1127,49 @@ class ArkaPlanNotDonusturucu:
                     kb.release(keyboard.Key.enter)
                     time.sleep(0.03)
                 logger.info(f">> [Auto-Type] Bekleyen {enter_adet} adet yeni satır için Enter tuşu basıldı.")
+
+            if tab_adet > 0:
+                time.sleep(0.06)
+                for _ in range(tab_adet):
+                    kb.press(keyboard.Key.tab)
+                    kb.release(keyboard.Key.tab)
+                    time.sleep(0.03)
+                logger.info(f">> [Auto-Type] Bekleyen {tab_adet} adet için Tab tuşu basıldı.")
         except Exception as e:
-            logger.error(f"Auto-Type / Enter Hatası: {e}")
+            logger.error(f"Auto-Type / Enter / Tab Hatası: {e}")
+
+    def _arka_planda_tab_bas(self, adet=1):
+        if keyboard is None:
+            return
+        time.sleep(0.05)
+        try:
+            if user32 and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
+                user32.SetForegroundWindow(self.son_hedef_hwnd)
+                time.sleep(0.05)
+            kb = keyboard.Controller()
+            for _ in range(adet):
+                kb.press(keyboard.Key.tab)
+                kb.release(keyboard.Key.tab)
+                time.sleep(0.03)
+            logger.info(f">> [Auto-Tab] Hedef uygulamaya {adet} adet Tab tuşu basıldı.")
+        except Exception as e:
+            logger.error(f"Auto-Tab Hatası: {e}")
+
+    def _arka_planda_ctrl_z_bas(self):
+        if keyboard is None:
+            return
+        time.sleep(0.05)
+        try:
+            if user32 and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
+                user32.SetForegroundWindow(self.son_hedef_hwnd)
+                time.sleep(0.05)
+            kb = keyboard.Controller()
+            with kb.pressed(keyboard.Key.ctrl):
+                kb.press('z')
+                kb.release('z')
+            logger.info(">> [Auto-Undo] Hedef uygulamaya Ctrl + Z gönderildi.")
+        except Exception as e:
+            logger.error(f"Auto-Undo Hatası: {e}")
 
 
 def main():
