@@ -104,8 +104,8 @@ class GeminiVisionRecognizer:
 
             def _model_cagrisi(model_adi, gonderi_verisi):
                 url = f'https://generativelanguage.googleapis.com/v1beta/models/{model_adi}:generateContent'
-                r = urllib.request.Request(url, data=json.dumps(gonderi_verisi).encode('utf-8'), headers=headers)
-                with urllib.request.urlopen(r, timeout=3.5) as resp:
+                timeout = getattr(config_mgr, 'gemini_timeout', 5.0)
+                with urllib.request.urlopen(r, timeout=timeout) as resp:
                     return json.loads(resp.read().decode())
 
             denenecek_modeller = [config_mgr.gemini_model] + [m for m in config_mgr.model_adaylari if m != config_mgr.gemini_model]

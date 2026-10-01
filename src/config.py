@@ -26,6 +26,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger("TabletNotAlici")
 
+# pythonw.exe altında konsol olmadığından yakalanmamış hataları log dosyasına yönlendir
+import threading
+
+def _global_excepthook(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    logger.critical("Kritik Yakalanmamış İstisna (Global):", exc_info=(exc_type, exc_value, exc_traceback))
+
+sys.excepthook = _global_excepthook
+if hasattr(threading, 'excepthook'):
+    def _threading_excepthook(args):
+        logger.critical(f"Kritik Thread İstisnası [{args.thread.name}]:", exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
+    threading.excepthook = _threading_excepthook
+
 
 class ConfigManager:
     """Yapılandırma ayarlarını, API modellerini ve Windows başlangıç kaydını yönetir."""
@@ -37,9 +52,10 @@ class ConfigManager:
         self.gemini_api_key = self.env_api_key
         self.api_key_env_den_mi = bool(self.env_api_key)
 
-        # Gemini model adayları ve varsayılan aktif model
+        # Gemini model adayları, zaman aşımı ve varsayılan aktif model
         self.model_adaylari = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash"]
         self.gemini_model = "gemini-3.5-flash"
+        self.gemini_timeout = 5.0  # Yavaş bağlantılar ve mobil erişim noktaları için güvenli süre
         self.ai_modu_aktif = True
         self.thinking_desteklemeyenler = set()
 
@@ -53,6 +69,12 @@ class ConfigManager:
                     if not self.env_api_key:
                         self.gemini_api_key = cfg.get("gemini_api_key", self.gemini_api_key)
 
+                    # Dinamik model listesi ve timeout desteği
+                    if "model_adaylari" in cfg and isinstance(cfg["model_adaylari"], list) and cfg["model_adaylari"]:
+                        self.model_adaylari = cfg["model_adaylari"]
+
+                    self.gemini_timeout = float(cfg.get("gemini_timeout", self.gemini_timeout))
+
                     loaded_model = cfg.get("gemini_model", self.gemini_model)
                     # Eski veya kapanmış modeller kayıtlıysa yeni varsayılana otomatik yükselt
                     if loaded_model in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash"]:
@@ -64,7 +86,7 @@ class ConfigManager:
 
                     self.thinking_desteklemeyenler = set(cfg.get("thinking_desteklemeyenler", []))
                     self.ai_modu_aktif = cfg.get("ai_modu_aktif", self.ai_modu_aktif)
-                    logger.info(f">> [Config] Yüklendi ({self.config_dosyasi}) - Model: {self.gemini_model} | AI: {self.ai_modu_aktif}")
+                    logger.info(f">> [Config] Yüklendi ({self.config_dosyasi}) - Model: {self.gemini_model} | Timeout: {self.gemini_timeout}s | AI: {self.ai_modu_aktif}")
             else:
                 self.kaydet()
         except Exception as e:
@@ -77,6 +99,8 @@ class ConfigManager:
             cfg = {
                 "gemini_api_key": kaydedilecek_key,
                 "gemini_model": self.gemini_model,
+                "model_adaylari": self.model_adaylari,
+                "gemini_timeout": self.gemini_timeout,
                 "ai_modu_aktif": self.ai_modu_aktif,
                 "thinking_desteklemeyenler": sorted(list(self.thinking_desteklemeyenler)),
                 "aciklama": "ai_modu_aktif true iken Gemini Vision modeli kullanılır. Model yanıt vermezse anında offline Windows Ink motoruna düşer."

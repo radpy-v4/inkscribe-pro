@@ -139,7 +139,7 @@ TABLET_ELYAZİ/
 │   └── ui.py            # ArkaPlanNotDonusturucu: Dual-mode UI, drawing canvas & workflow
 ├── app.py               # Lightweight main entry point
 ├── tests/
-│   └── test_logic.py    # Hardware-independent unit test suite (15 tests)
+│   └── test_logic.py    # Hardware-independent unit test suite (16 tests)
 ├── TabletNotAlici.spec  # PyInstaller build specification
 └── config.json          # User configuration
 ```

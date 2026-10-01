@@ -216,6 +216,22 @@ class TestTabletNotAliciMantik(unittest.TestCase):
             son_satirlar = nb.son_satirlari_oku(5)
             self.assertTrue(any("Market alışverişi yap" in s for s in son_satirlar))
 
+    def test_config_manager_dinamik_model_listesi_ve_timeout(self):
+        """Kullanıcı config.json dosyasından özel model listesi ve timeout okuyabilmeli."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cfg_path = os.path.join(tmp_dir, "config.json")
+            with open(cfg_path, "w", encoding="utf-8") as f:
+                json.dump({
+                    "gemini_model": "custom-model-pro",
+                    "model_adaylari": ["custom-model-pro", "gemini-3.5-flash"],
+                    "gemini_timeout": 6.5
+                }, f)
+
+            cfg = ConfigManager(app_dir=tmp_dir)
+            self.assertEqual(cfg.gemini_model, "custom-model-pro")
+            self.assertEqual(cfg.model_adaylari, ["custom-model-pro", "gemini-3.5-flash"])
+            self.assertEqual(cfg.gemini_timeout, 6.5)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -143,7 +143,7 @@ TABLET_ELYAZİ/
 │   └── ui.py            # ArkaPlanNotDonusturucu: Çift modlu arayüz, çizim tuvali ve iş akışı
 ├── app.py               # Hafif ana giriş noktası
 ├── tests/
-│   └── test_logic.py    # Donanımdan bağımsız birim test paketi (15 test)
+│   └── test_logic.py    # Donanımdan bağımsız birim test paketi (16 test)
 ├── TabletNotAlici.spec  # PyInstaller derleme spesifikasyonu
 └── config.json          # Kullanıcı yapılandırması
 ```
