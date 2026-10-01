@@ -434,6 +434,7 @@ class TestInkSessionJestAkisi(unittest.TestCase):
 
         app.stroke_builder = None
         app.stroke_container = None
+        app.titreme_filtresi = TitremeFiltresi()
         app.aktif_noktalar = []
         app.tum_stroke_noktalari = []
 

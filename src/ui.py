@@ -600,7 +600,8 @@ class ArkaPlanNotDonusturucu:
         self.image = Image.new("RGB", (w, h), "white")
         self.draw = ImageDraw.Draw(self.image)
         self.stroke_container = inking.InkStrokeContainer() if inking else None
-        self.titreme_filtresi.sifirla()
+        if getattr(self, 'titreme_filtresi', None):
+            self.titreme_filtresi.sifirla()
         self.tum_stroke_noktalari = []
         self.cizim_yapildi = False
         if self.yazma_modu_aktif:
@@ -649,7 +650,8 @@ class ArkaPlanNotDonusturucu:
             self.debounce_timer_id = None
 
         self.kalem_basili = True
-        pt = self.titreme_filtresi.baslat(event.x, event.y)
+        tf = getattr(self, 'titreme_filtresi', None)
+        pt = tf.baslat(event.x, event.y) if tf else Point(float(event.x), float(event.y))
         self.son_x, self.son_y = pt.x, pt.y
         self.son_yazma_zamani = time.time()
         self.stroke_baslangic_zamani = time.time()
@@ -680,7 +682,8 @@ class ArkaPlanNotDonusturucu:
             return
 
         # Titreme Filtresi: Mikro sensör parazitlerini eler, hareketi pürüzsüzleştirir
-        pt = self.titreme_filtresi.filtrele(event.x, event.y)
+        tf = getattr(self, 'titreme_filtresi', None)
+        pt = tf.filtrele(event.x, event.y) if tf else Point(float(event.x), float(event.y))
         if pt is None:
             return
 
@@ -771,7 +774,8 @@ class ArkaPlanNotDonusturucu:
             return
 
         self.kalem_basili = False
-        self.titreme_filtresi.sifirla()
+        if getattr(self, 'titreme_filtresi', None):
+            self.titreme_filtresi.sifirla()
         self.son_x, self.son_y = None, None
         self.son_yazma_zamani = time.time()
 

@@ -61,12 +61,15 @@ class WindowsInkRecognizer:
         self.ink_container = inking.InkRecognizerContainer()
         self.secilen_motor_adi = "Varsayılan"
 
-        for r in self.ink_container.get_recognizers():
-            name = r.name.lower()
-            if "turkish" in name or "türk" in name or name.startswith("tr-") or name == "tr":
-                self.ink_container.set_default_recognizer(r)
-                self.secilen_motor_adi = r.name
-                break
+        try:
+            for r in self.ink_container.get_recognizers():
+                name = r.name.lower()
+                if "turkish" in name or "türk" in name or name.startswith("tr-") or name == "tr":
+                    self.ink_container.set_default_recognizer(r)
+                    self.secilen_motor_adi = r.name
+                    break
+        except Exception as e:
+            logger.warning(f"[Windows Ink] Dil tanıyıcı listesi taranırken istisna ({e}). Varsayılan motor devrede.")
         logger.info(f"[2/3] El yazısı motoru hazır: {self.secilen_motor_adi} (100% Çevrimdışı & Donanım Hızlandırmalı)")
 
     def recognize(self, stroke_container):
