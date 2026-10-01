@@ -30,7 +30,7 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
   - Hem Canvas görselini hem de yerel Windows Ink vuruşlarını (strokes) eşzamanlı geri yükler.
 - **✍️ Akıllı Jestler (Gestures):**
   - **Karalama (Scratch-out):** Yazının üzerini karaladığınızda ped temizlenir (bitişik el yazısıyla karışmaması için yoğunluk korumalıdır).
-  - **Dikey Hızlı Çizgi (Enter):** Doğal bir aşağı kaydırma hareketiyle yeni satır ekler; dönüşüm sürüyorsa satırı sıraya alıp doğru konuma ekler.
+  - **Dikey Hızlı Çizgi (Enter):** Doğal bir aşağı kaydırma hareketiyle deftere yeni satır ekler; dönüşüm sürüyorsa satırı sıraya alıp yanıttan sonraya doğru sırayla ekler (Tepsiden "Otomatik Enter Tuşu" açılarak harici uygulamalara da Enter basılabilir).
 - **📚 Çoklu Defter Yönetimi:**
   - `Ders Notları`, `Yapılacaklar`, `Fikirler` gibi farklı sekmeler arasında tek tıkla geçiş ve otomatik dosya kaydı (`.txt`).
 - **🛡️ Gizlilik Odaklı Loglama & %0 Boşta CPU:**
@@ -81,7 +81,7 @@ copy config.example.json config.json
 ```json
 {
     "gemini_api_key": "API_ANAHTARINIZ",
-    "gemini_model": "gemini-2.5-flash",
+    "gemini_model": "gemini-3.5-flash",
     "ai_modu_aktif": true
 }
 ```

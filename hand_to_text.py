@@ -91,7 +91,7 @@ class ArkaPlanNotDonusturucu:
         self.yazma_modu_aktif = False
         self.surukleniyor = False
         self.cizim_yapildi = False  # Boşta %0 CPU için bayrak
-        self.bekleyen_yeni_satir = False  # Dönüşüm sürerken gelen Enter jestlerini sıraya alır
+        self.bekleyen_yeni_satir = 0  # Dönüşüm sürerken gelen Enter jestlerinin sayacı
 
         # Akıllı metin akışı takibi ve Hedef Pencere Odak Takibi
         self.son_kayit_zamani = 0
@@ -106,6 +106,8 @@ class ArkaPlanNotDonusturucu:
 
         # Yetenekler
         self.otomatik_yapistir = True
+        self.otomatik_enter = False  # Hedef uygulamaya gerçek Enter basma (güvenlik için varsayılan KAPALI)
+        self.thinking_desteklemeyenler = set()  # thinkingConfig desteklemeyen modelleri önbelleğe al
 
         # Çoklu Defterler (Mutlak yollara bağlandı - CWD bağımsız)
         self.defterler = [
@@ -315,7 +317,17 @@ class ArkaPlanNotDonusturucu:
                     cfg = json.load(f)
                     if not self.env_api_key:
                         self.gemini_api_key = cfg.get("gemini_api_key", self.gemini_api_key)
-                    self.gemini_model = cfg.get("gemini_model", self.gemini_model)
+                    
+                    loaded_model = cfg.get("gemini_model", self.gemini_model)
+                    # Eski veya kapanmış modeller kayıtlıysa yeni varsayılana otomatik yükselt
+                    if loaded_model in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash"]:
+                        logger.info(f">> [Config Güncelleme] Emekli model ({loaded_model}) yerine '{self.model_adaylari[0]}' atandı.")
+                        self.gemini_model = self.model_adaylari[0]
+                        self.yapilandirmayi_kaydet()
+                    else:
+                        self.gemini_model = loaded_model
+
+                    self.thinking_desteklemeyenler = set(cfg.get("thinking_desteklemeyenler", []))
                     self.ai_modu_aktif = cfg.get("ai_modu_aktif", self.ai_modu_aktif)
                     logger.info(f">> [Config] Yüklendi ({self.config_dosyasi}) - Model: {self.gemini_model} | AI: {self.ai_modu_aktif}")
             else:
@@ -331,6 +343,7 @@ class ArkaPlanNotDonusturucu:
                 "gemini_api_key": kaydedilecek_key,
                 "gemini_model": self.gemini_model,
                 "ai_modu_aktif": self.ai_modu_aktif,
+                "thinking_desteklemeyenler": sorted(list(self.thinking_desteklemeyenler)),
                 "aciklama": "ai_modu_aktif true iken Gemini Vision modeli kullanılır. Model yanıt vermezse anında offline Windows Ink motoruna düşer."
             }
             with open(self.config_dosyasi, "w", encoding="utf-8") as f:
@@ -361,28 +374,6 @@ class ArkaPlanNotDonusturucu:
             kirpilmis_resim.convert("RGB").save(buf, format="JPEG", quality=78)
             b64_data = base64.b64encode(buf.getvalue()).decode('utf-8')
             
-            # OCR için düşünme bütçesini 0 yaparak anında saf metin yanıtı al
-            payload = {
-                'contents': [{
-                    'parts': [
-                        {'text': 'Sadece bu görseldeki Türkçe el yazısını oku. Başka hiçbir açıklama yapma:'},
-                        {
-                            'inline_data': {
-                                'mime_type': 'image/jpeg',
-                                'data': b64_data
-                            }
-                        }
-                    ]
-                }],
-                'generationConfig': {
-                    'temperature': 0.0,
-                    'maxOutputTokens': 500,
-                    'thinkingConfig': {
-                        'thinkingBudget': 0
-                    }
-                }
-            }
-
             headers = {
                 'Content-Type': 'application/json',
                 'X-goog-api-key': self.gemini_api_key
@@ -399,6 +390,29 @@ class ArkaPlanNotDonusturucu:
             model_404_aldi = False
             
             for m_adi in denenecek_modeller:
+                payload = {
+                    'contents': [{
+                        'parts': [
+                            {'text': 'Sadece bu görseldeki Türkçe el yazısını oku. Başka hiçbir açıklama yapma:'},
+                            {
+                                'inline_data': {
+                                    'mime_type': 'image/jpeg',
+                                    'data': b64_data
+                                }
+                            }
+                        ]
+                    }],
+                    'generationConfig': {
+                        'temperature': 0.0,
+                        'maxOutputTokens': 500
+                    }
+                }
+                # thinkingConfig reddeden modeller önbellekte tutulur, gereksiz çift istek önlenir
+                if m_adi not in self.thinking_desteklemeyenler:
+                    payload['generationConfig']['thinkingConfig'] = {
+                        'thinkingBudget': 0
+                    }
+
                 try:
                     res = _model_cagrisi(m_adi, payload)
                 except urllib.error.HTTPError as http_err:
@@ -411,14 +425,17 @@ class ArkaPlanNotDonusturucu:
                             model_404_aldi = True
                         continue
 
-                    # 503 (Sunucu Aşırı Yoğunluğu) durumunda sıradaki yedek modeli dene
-                    if http_err.code == 503:
-                        logger.warning(f"[AI Vision] '{m_adi}' aşırı yoğunluk nedeniyle geçici olarak yanıt veremedi (HTTP 503). Yedek model deneniyor...")
+                    # 429 (Kota/Hız Sınırı) veya 503 (Sunucu Aşırı Yoğunluğu) durumunda sıradaki yedek modeli dene
+                    if http_err.code in (429, 503):
+                        sebep = "hız/kota aşımı (HTTP 429)" if http_err.code == 429 else "sunucu aşırı yoğunluğu (HTTP 503)"
+                        logger.warning(f"[AI Vision] '{m_adi}' {sebep} nedeniyle yanıt veremedi. Sıradaki model deneniyor...")
                         continue
 
-                    # ThinkingConfig hatası ise parametresiz tekrar dene
+                    # ThinkingConfig hatası ise modele göre önbelleğe alıp kalıcı kaydet ve parametresiz tekrar dene
                     if "thinking" in hata_metni.lower() and 'thinkingConfig' in payload.get('generationConfig', {}):
-                        logger.info(f"[AI Vision] '{m_adi}' için thinkingConfig desteklenmiyor, parametresiz deneniyor...")
+                        logger.info(f"[AI Vision] '{m_adi}' için thinkingConfig desteklenmiyor, önbelleğe alınıp parametresiz deneniyor...")
+                        self.thinking_desteklemeyenler.add(m_adi)
+                        self.yapilandirmayi_kaydet()
                         kopya_payload = dict(payload)
                         kopya_payload['generationConfig'] = dict(payload['generationConfig'])
                         kopya_payload['generationConfig'].pop('thinkingConfig', None)
@@ -496,6 +513,11 @@ class ArkaPlanNotDonusturucu:
         durum = "Açık" if self.otomatik_yapistir else "Kapalı"
         logger.info(f">> [Auto-Type] Otomatik Yapıştırma: {durum}")
 
+    def otomatik_enter_degistir(self, icon=None, item=None):
+        self.otomatik_enter = not self.otomatik_enter
+        durum = "Açık (Dikkat: Mesaj/Form/Komut gönderebilir)" if self.otomatik_enter else "Kapalı (Güvenli - Yalnızca Deftere)"
+        logger.info(f">> [Auto-Enter] Otomatik Enter Tuşu: {durum}")
+
     def tepsi_simgesi_olustur(self):
         icon_img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
         d = ImageDraw.Draw(icon_img)
@@ -519,6 +541,7 @@ class ArkaPlanNotDonusturucu:
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("⚡ Vision AI (Gemini) Hibrit", lambda icon, item: self.root.after(0, self.toggle_ai_modu), checked=lambda item: self.ai_modu_aktif),
             pystray.MenuItem("📋 Otomatik İmlece Yapıştır", self.otomatik_yapistir_degistir, checked=lambda item: self.otomatik_yapistir),
+            pystray.MenuItem("⏎ Otomatik Enter Tuşu", self.otomatik_enter_degistir, checked=lambda item: self.otomatik_enter),
             pystray.MenuItem("🚀 Windows Açılışında Başlat", self.baslangic_durumu_degistir, checked=lambda item: self.baslangic_durumu_al()),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("❌ Programdan Çık", lambda icon, item: self.root.after(0, self.programi_kapat))
@@ -538,7 +561,23 @@ class ArkaPlanNotDonusturucu:
             logger.error(f"Dosya açma hatası: {e}")
 
     def alt_cubuk_gecici_mesaj(self, mesaj, sure=2.2):
-        """Alt çubukta veya ekranda çakışmasız, arka planlı geçici bir uyarı gösterir (Toast)."""
+        """Alt çubukta veya ekranda çakışmasız, arka planlı geçici bir uyarı gösterir (Toast).
+        Eğer pencere gizliyse (örneğin tam ekran modunda dönüşüm sırasında withdraw edilmişse)
+        kullanıcıya Windows masaüstü tepsi bildirimi (tray notification) gösterir."""
+        pencere_gorunur = False
+        try:
+            pencere_gorunur = self.root.winfo_viewable() and self.yazma_modu_aktif
+        except Exception:
+            pencere_gorunur = False
+
+        if not pencere_gorunur:
+            if hasattr(self, 'tray_icon') and self.tray_icon:
+                try:
+                    self.tray_icon.notify(mesaj, "VEIKK Not Alıcı Pro")
+                    return
+                except Exception as e:
+                    logger.debug(f"Tepsi bildirimi hatası: {e}")
+
         if self.toast_timer_id:
             try:
                 self.root.after_cancel(self.toast_timer_id)
@@ -862,13 +901,13 @@ class ArkaPlanNotDonusturucu:
                     self.son_silinen_stroke_noktalari = [list(pts) for pts in self.tum_stroke_noktalari]
 
                 if self.isleniyor:
-                    # Halen Gemini/Ink dönüşümü sürüyorsa yeni satırı dönüşüm sonrasına sıraya al
-                    self.bekleyen_yeni_satir = True
-                    logger.info(">> [JEST Sıralama] Dönüşüm sürdüğü için yeni satır yanıttan sonraya sıraya alındı.")
+                    # Halen Gemini/Ink dönüşümü sürüyorsa yeni satırı dönüşüm sonrasına sıraya al (sayaç)
+                    self.bekleyen_yeni_satir += 1
+                    logger.info(f">> [JEST Sıralama] Dönüşüm sürdüğü için yeni satır yanıttan sonraya sıraya alındı (Bekleyen: {self.bekleyen_yeni_satir}).")
                 else:
                     self.dosyaya_yeni_satir_ekle()
-                    # Otomatik yapıştırma aktifse aktif programa da Enter gönder
-                    if self.otomatik_yapistir:
+                    # YALNIZCA otomatik_enter açık ise hedef uygulamaya gerçek Enter tuşu gönder
+                    if self.otomatik_enter:
                         threading.Thread(target=self._arka_planda_enter_bas, daemon=True).start()
 
                 self.ekrani_temizle(yedekle=False)
@@ -902,15 +941,18 @@ class ArkaPlanNotDonusturucu:
 
         return False
 
-    def _arka_planda_enter_bas(self):
+    def _arka_planda_enter_bas(self, adet=1):
         time.sleep(0.05)
         try:
             if self.tam_ekran_mi and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
                 user32.SetForegroundWindow(self.son_hedef_hwnd)
                 time.sleep(0.05)
             kb = keyboard.Controller()
-            kb.press(keyboard.Key.enter)
-            kb.release(keyboard.Key.enter)
+            for _ in range(adet):
+                kb.press(keyboard.Key.enter)
+                kb.release(keyboard.Key.enter)
+                time.sleep(0.03)
+            logger.info(f">> [Auto-Enter] Hedef uygulamaya {adet} adet Enter tuşu basıldı.")
         except Exception as e:
             logger.error(f"Auto-Enter Hatası: {e}")
 
@@ -1002,6 +1044,7 @@ class ArkaPlanNotDonusturucu:
                     self.root.after(0, self.tetikle_donusturme)
 
     def metne_donustur(self, stroke_container, resim, bbox):
+        metin_bulundu = False
         try:
             pad = 20
             w, h = self.mevcut_boyut()
@@ -1062,6 +1105,7 @@ class ArkaPlanNotDonusturucu:
                 metin = " ".join(kelimeler).strip()
 
             if metin:
+                metin_bulundu = True
                 # Özel not içeriğini diske sızdırmadan yalnızca başarı ve uzunluk logla
                 logger.info(f">> [DÖNÜŞÜM BAŞARILI]: {len(metin)} karakter aktarılıyor.")
                 self.root.after(0, lambda: self.panoya_ve_dosyaya_aktar(metin))
@@ -1070,42 +1114,68 @@ class ArkaPlanNotDonusturucu:
 
         except Exception as e:
             logger.error(f"[Tanıma Hatası]: {e}")
+            self.root.after(0, lambda: self.alt_cubuk_gecici_mesaj("⚠️ Tanıma sırasında bir hata oluştu."))
+        finally:
+            if not metin_bulundu:
+                # Yarış durumunu önlemek için ÖNCE isleniyor kapatılır, ardından sayaç boşaltılır
+                self.isleniyor = False
+                if self.bekleyen_yeni_satir > 0:
+                    adet = self.bekleyen_yeni_satir
+                    self.bekleyen_yeni_satir = 0
+                    for _ in range(adet):
+                        self.dosyaya_yeni_satir_ekle()
+                    if self.otomatik_enter:
+                        threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
+
+    def panoya_ve_dosyaya_aktar(self, metin):
+        try:
+            pano_basarili = False
+            # Kilitlenmeye karşı korumalı pano aktarımı
+            for _ in range(3):
+                try:
+                    self.root.clipboard_clear()
+                    self.root.clipboard_append(metin)
+                    self.root.update()
+                    pano_basarili = True
+                    logger.info(">> [Pano] Metin panoya kopyalandı! (Ctrl + V)")
+                    break
+                except Exception:
+                    time.sleep(0.04)
+
+            if not pano_basarili:
+                logger.error("[Pano Hatası] Metin panoya yazılamadı! Eski pano içeriğinin sızmaması için otomatik yapıştırma atlandı.")
+                self.alt_cubuk_gecici_mesaj("⚠️ Pano kopyalanamadı! Yapıştırma iptal edildi.")
+
+            self.dosyaya_kaydet(metin)
+
+            # Yarış durumunu önlemek için ÖNCE isleniyor kapatılır, bekleyen Enter sayacı alınır
+            enter_adet = self.bekleyen_yeni_satir
+            self.bekleyen_yeni_satir = 0
+            self.isleniyor = False
+
+            if enter_adet > 0:
+                for _ in range(enter_adet):
+                    self.dosyaya_yeni_satir_ekle()
+
+            # Ped üzerinde gösterilmek üzere son 2 metni güncelle
+            self.son_metinler.append(metin)
+            if len(self.son_metinler) > 2:
+                self.son_metinler = self.son_metinler[-2:]
+
+            if self.yazma_modu_aktif:
+                self.root.after(0, self.butonlari_ciz)
+
+            # Sıralı yapıştırma ve Enter: Ctrl+V ve Enter tek bir thread'de sırayla basılır (asla yarış durumu oluşmaz)
+            gonderilecek_enter = enter_adet if self.otomatik_enter else 0
+            if self.otomatik_yapistir and pano_basarili:
+                threading.Thread(target=self._arka_planda_yapistir_ve_enter, args=(gonderilecek_enter,), daemon=True).start()
+            elif not self.otomatik_yapistir and gonderilecek_enter > 0:
+                threading.Thread(target=self._arka_planda_enter_bas, args=(gonderilecek_enter,), daemon=True).start()
+
         finally:
             self.isleniyor = False
 
-    def panoya_ve_dosyaya_aktar(self, metin):
-        # Kilitlenmeye karşı korumalı pano aktarımı
-        for _ in range(3):
-            try:
-                self.root.clipboard_clear()
-                self.root.clipboard_append(metin)
-                self.root.update()
-                logger.info(">> [Pano] Metin panoya kopyalandı! (Ctrl + V)")
-                break
-            except Exception as e:
-                time.sleep(0.04)
-
-        self.dosyaya_kaydet(metin)
-
-        # Eğer dönüşüm sürerken Enter jesti çizildiyse, şimdi yeni satırı ekle
-        if self.bekleyen_yeni_satir:
-            self.bekleyen_yeni_satir = False
-            self.dosyaya_yeni_satir_ekle()
-            if self.otomatik_yapistir:
-                threading.Thread(target=self._arka_planda_enter_bas, daemon=True).start()
-
-        # Ped üzerinde gösterilmek üzere son 2 metni güncelle
-        self.son_metinler.append(metin)
-        if len(self.son_metinler) > 2:
-            self.son_metinler = self.son_metinler[-2:]
-
-        if self.yazma_modu_aktif:
-            self.root.after(0, self.butonlari_ciz)
-
-        if self.otomatik_yapistir:
-            threading.Thread(target=self._arka_planda_yapistir, daemon=True).start()
-
-    def _arka_planda_yapistir(self):
+    def _arka_planda_yapistir_ve_enter(self, enter_adet=0):
         time.sleep(0.12)
         try:
             # Yalnızca tam ekran modundaysa hedef uygulamayı öne getir
@@ -1118,8 +1188,16 @@ class ArkaPlanNotDonusturucu:
                 kb.press('v')
                 kb.release('v')
             logger.info(">> [Auto-Type] Metin doğrudan aktif pencerenize yapıştırıldı!")
+
+            if enter_adet > 0:
+                time.sleep(0.06)
+                for _ in range(enter_adet):
+                    kb.press(keyboard.Key.enter)
+                    kb.release(keyboard.Key.enter)
+                    time.sleep(0.03)
+                logger.info(f">> [Auto-Type] Bekleyen {enter_adet} adet yeni satır için Enter tuşu basıldı.")
         except Exception as e:
-            logger.error(f"Auto-Type Hatası: {e}")
+            logger.error(f"Auto-Type / Enter Hatası: {e}")
 
     def dosyaya_yeni_satir_ekle(self):
         try:
