@@ -66,7 +66,7 @@
 
 ### 2. Clone the Repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/inkscribe-pro.git
+git clone https://github.com/radpy-v4/inkscribe-pro.git
 cd inkscribe-pro
 ```
 
@@ -84,7 +84,13 @@ Open `config.json` and insert your [Google AI Studio](https://aistudio.google.co
 ```json
 {
     "gemini_api_key": "YOUR_GEMINI_API_KEY",
-    "gemini_model": "gemini-2.5-flash",
+    "gemini_model": "gemini-3.5-flash",
+    "model_adaylari": [
+        "gemini-3.5-flash",
+        "gemini-flash-latest",
+        "gemini-2.5-flash"
+    ],
+    "gemini_timeout": 5.0,
     "ai_modu_aktif": true
 }
 ```

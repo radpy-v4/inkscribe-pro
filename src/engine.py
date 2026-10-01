@@ -102,9 +102,11 @@ class GeminiVisionRecognizer:
                 'X-goog-api-key': config_mgr.gemini_api_key
             }
 
+            timeout = float(getattr(config_mgr, 'gemini_timeout', 5.0))
+
             def _model_cagrisi(model_adi, gonderi_verisi):
                 url = f'https://generativelanguage.googleapis.com/v1beta/models/{model_adi}:generateContent'
-                timeout = getattr(config_mgr, 'gemini_timeout', 5.0)
+                r = urllib.request.Request(url, data=json.dumps(gonderi_verisi).encode('utf-8'), headers=headers)
                 with urllib.request.urlopen(r, timeout=timeout) as resp:
                     return json.loads(resp.read().decode())
 
@@ -166,6 +168,13 @@ class GeminiVisionRecognizer:
                     else:
                         logger.error(f"[AI Vision API Hatası]: HTTP {http_err.code} ({m_adi}) - {hata_metni}")
                         return None
+                except (urllib.error.URLError, TimeoutError) as net_err:
+                    is_timeout = isinstance(net_err, TimeoutError) or isinstance(getattr(net_err, 'reason', None), TimeoutError) or "timed out" in str(net_err).lower()
+                    if is_timeout:
+                        logger.warning(f"[AI Vision] '{m_adi}' {timeout}s zaman aşımına uğradı. Sıradaki model deneniyor...")
+                        continue
+                    logger.warning(f"[AI Vision Ağ Hatası] '{m_adi}': {net_err}")
+                    break
 
                 if res and 'candidates' in res and res['candidates']:
                     candidate = res['candidates'][0]
