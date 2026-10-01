@@ -31,10 +31,11 @@ def karalama_jesti_mi(noktalar):
     return yon_degisimleri >= 6 and (toplam_yol_x / max(1.0, genislik_x)) > 2.5
 
 
-def dikey_cizgi_jesti_mi(noktalar, gecen_sure):
+def dikey_cizgi_jesti_mi(noktalar, gecen_sure, dy_min=130, dx_max=30):
     """
     Hızlı ve dik bir aşağı çizginin Enter (Yeni Satır) jesti olup olmadığını belirler.
-    Hızlı bir fiske (flick) hareketi (< 0.35 saniye, dy > 130, dx < 30) olmalıdır.
+    Hızlı bir fiske (flick) hareketi (< 0.35 saniye, dy > dy_min, dx < dx_max) olmalıdır.
+    DPI ölçeklemesine göre eşikler uyarlanabilir.
     """
     if len(noktalar) < 5 or gecen_sure >= 0.35:
         return False
@@ -44,4 +45,4 @@ def dikey_cizgi_jesti_mi(noktalar, gecen_sure):
     dy = p_son.y - p_ilk.y
     dx = abs(p_son.x - p_ilk.x)
 
-    return dy > 130 and dx < 30 and (dy / max(1.0, dx)) > 4.0
+    return dy > dy_min and dx < dx_max and (dy / max(1.0, dx)) > 4.0

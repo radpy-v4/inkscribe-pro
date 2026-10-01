@@ -1,4 +1,5 @@
 import io
+import time
 import json
 import base64
 import asyncio
@@ -27,9 +28,23 @@ def gemini_metin_ayristir(candidate):
         lines = txt.split("\n")
         txt = "\n".join(lines[1:-1]).strip() if len(lines) >= 3 else txt.replace("```", "").strip()
 
-    if txt and not txt.lower().startswith("görüntüde") and not txt.lower().startswith("bu görselde"):
-        return txt
-    return None
+    # Modelin 'NO_TEXT' veya tam reddetme/açıklama yanıtlarını filtrele
+    temiz_kod = txt.strip().strip("`'\".,!?:; \n\r\t").upper()
+    if temiz_kod == "NO_TEXT":
+        return None
+
+    txt_lower = txt.strip().lower()
+    # "yazı yok" tek başına aranmaz (örn: "Ödevde yazı yoksa not düş" meşru yazıdır)
+    # Yalnızca bariz red ve açıklama cümleleri filtrelenir
+    geveze_kaliplar = (
+        "herhangi bir el yazısı", "el yazısı bulunamadı", "el yazısı göremiyorum",
+        "metin bulunamadı", "metin göremiyorum", "okunabilir bir metin yok",
+        "görselde el yazısı yok", "yazı bulunamadı", "görselde yazı yok"
+    )
+    if any(k in txt_lower for k in geveze_kaliplar):
+        return None
+
+    return txt if txt else None
 
 
 class WindowsInkRecognizer:
@@ -83,7 +98,8 @@ class GeminiVisionRecognizer:
     """Google Gemini Vision REST API İstemcisi - Model Yedekleme & Hata Korumalı."""
 
     def tani(self, kirpilmis_resim, config_mgr):
-        if not config_mgr.gemini_api_key or not config_mgr.ai_modu_aktif:
+        ai_onay = getattr(config_mgr, 'ai_onay_verildi', False)
+        if not config_mgr.gemini_api_key or not config_mgr.ai_modu_aktif or not ai_onay:
             return None
 
         try:
@@ -104,20 +120,29 @@ class GeminiVisionRecognizer:
 
             timeout = float(getattr(config_mgr, 'gemini_timeout', 5.0))
 
-            def _model_cagrisi(model_adi, gonderi_verisi):
+            def _model_cagrisi(model_adi, gonderi_verisi, call_timeout):
                 url = f'https://generativelanguage.googleapis.com/v1beta/models/{model_adi}:generateContent'
                 r = urllib.request.Request(url, data=json.dumps(gonderi_verisi).encode('utf-8'), headers=headers)
-                with urllib.request.urlopen(r, timeout=timeout) as resp:
+                with urllib.request.urlopen(r, timeout=call_timeout) as resp:
                     return json.loads(resp.read().decode())
 
             denenecek_modeller = [config_mgr.gemini_model] + [m for m in config_mgr.model_adaylari if m != config_mgr.gemini_model]
             model_404_aldi = False
+            baslangic_zamani = time.time()
+            toplam_butce = getattr(config_mgr, 'gemini_toplam_butce', 8.0)
 
-            for m_adi in denenecek_modeller:
+            for index, m_adi in enumerate(denenecek_modeller):
+                gecen_sure = time.time() - baslangic_zamani
+                kalan_butce = toplam_butce - gecen_sure
+                if index > 0 and kalan_butce <= 0.2:
+                    logger.warning(f"[AI Vision] Toplam {toplam_butce}s süre bütçesi doldu. Yerel Windows Ink motoruna geçiliyor...")
+                    break
+                cagri_timeout = min(float(config_mgr.gemini_timeout), max(0.1, kalan_butce))
+
                 payload = {
                     'contents': [{
                         'parts': [
-                            {'text': 'Sadece bu görseldeki Türkçe el yazısını oku. Başka hiçbir açıklama yapma:'},
+                            {'text': 'Sadece bu görseldeki Türkçe el yazısını oku. Görselde hiçbir el yazısı veya metin yoksa sadece "NO_TEXT" yaz. Başka hiçbir açıklama yapma:'},
                             {
                                 'inline_data': {
                                     'mime_type': 'image/jpeg',
@@ -137,7 +162,7 @@ class GeminiVisionRecognizer:
                     }
 
                 try:
-                    res = _model_cagrisi(m_adi, payload)
+                    res = _model_cagrisi(m_adi, payload, cagri_timeout)
                 except urllib.error.HTTPError as http_err:
                     hata_metni = http_err.read().decode('utf-8', errors='ignore')
 
@@ -152,15 +177,20 @@ class GeminiVisionRecognizer:
                         logger.warning(f"[AI Vision] '{m_adi}' {sebep} nedeniyle yanıt veremedi. Sıradaki model deneniyor...")
                         continue
 
-                    if "thinking" in hata_metni.lower() and 'thinkingConfig' in payload.get('generationConfig', {}):
+                    if ("thinking" in hata_metni.lower() or "invalid_argument" in hata_metni.lower() or http_err.code == 400) and 'thinkingConfig' in payload.get('generationConfig', {}):
                         logger.info(f"[AI Vision] '{m_adi}' için thinkingConfig desteklenmiyor, önbelleğe alınıp parametresiz deneniyor...")
                         config_mgr.thinking_desteklemeyenler.add(m_adi)
                         config_mgr.kaydet()
                         kopya_payload = dict(payload)
                         kopya_payload['generationConfig'] = dict(payload['generationConfig'])
                         kopya_payload['generationConfig'].pop('thinkingConfig', None)
+                        kalan_butce = toplam_butce - (time.time() - baslangic_zamani)
+                        if kalan_butce <= 0.2:
+                            logger.warning(f"[AI Vision] Toplam {toplam_butce}s süre bütçesi doldu. Yerel Windows Ink motoruna geçiliyor...")
+                            return None
+                        retry_timeout = min(float(config_mgr.gemini_timeout), max(0.1, kalan_butce))
                         try:
-                            res = _model_cagrisi(m_adi, kopya_payload)
+                            res = _model_cagrisi(m_adi, kopya_payload, retry_timeout)
                         except urllib.error.HTTPError as retry_err:
                             retry_hata = retry_err.read().decode('utf-8', errors='ignore')
                             logger.error(f"[AI Vision API Hatası]: HTTP {retry_err.code} - {retry_hata}")
@@ -171,7 +201,7 @@ class GeminiVisionRecognizer:
                 except (urllib.error.URLError, TimeoutError) as net_err:
                     is_timeout = isinstance(net_err, TimeoutError) or isinstance(getattr(net_err, 'reason', None), TimeoutError) or "timed out" in str(net_err).lower()
                     if is_timeout:
-                        logger.warning(f"[AI Vision] '{m_adi}' {timeout}s zaman aşımına uğradı. Sıradaki model deneniyor...")
+                        logger.warning(f"[AI Vision] '{m_adi}' {cagri_timeout:.1f}s zaman aşımına uğradı. Sıradaki model deneniyor...")
                         continue
                     logger.warning(f"[AI Vision Ağ Hatası] '{m_adi}': {net_err}")
                     break
@@ -201,8 +231,9 @@ class RecognitionEngine:
     def recognize(self, stroke_container, kirpilmis_pil_resim, config_mgr):
         metin = None
 
-        # 1. Aşama: Vision AI (Gemini) Hibrit Tanıma
-        if config_mgr.ai_modu_aktif and config_mgr.gemini_api_key:
+        # 1. Aşama: Vision AI (Gemini) Hibrit Tanıma (Kullanıcı gizlilik onayı şartı aranır)
+        ai_onay = getattr(config_mgr, 'ai_onay_verildi', False)
+        if config_mgr.ai_modu_aktif and config_mgr.gemini_api_key and ai_onay:
             logger.info(f"[AI Vision] {config_mgr.gemini_model} modeli ile taranıyor...")
             metin = self.gemini_vision.tani(kirpilmis_pil_resim, config_mgr)
             if metin:

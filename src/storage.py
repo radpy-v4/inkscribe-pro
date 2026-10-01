@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from .config import APP_DIR, logger
 
@@ -6,13 +7,18 @@ from .config import APP_DIR, logger
 def metin_ekleme_bicimlendir(metin, aktif_defter_adi, gecen_sure, saat_str="12:00"):
     """
     Deftere kaydedilirken yapılacaklar kutusu, zaman damgası ve boşluk kurallarını biçimlendirir.
-    Birim testlerde saf mantık olarak test edilebilir.
+    Birim testlerde saf mantık olarak test edilebilir ve metin_kaydet tarafından doğrudan kullanılır.
     """
     is_todo = (aktif_defter_adi == "Yapılacaklar")
     if is_todo and not metin.startswith(("[ ]", "[x]", "- [ ]")):
         metin = f"[ ] {metin}"
 
-    if is_todo or metin.startswith(("-", "*", "•")):
+    # Madde işareti kuralı:
+    # '•' ve '*' işaretleri harfe bitişik olsa da madde sayılır (örn: •Merhaba, *Not).
+    # '-' ve '1.' gibi numaralar ise yalnızca sonrasında boşluk varsa madde sayılır (1.5 litre ve -5 derece korunur).
+    is_bullet = bool(re.match(r"^(\d+[.)]\s+|-\s+|[•*])", metin)) or metin.lower().startswith("madde ")
+
+    if is_todo or is_bullet:
         return f"\n{metin}"
     elif gecen_sure > 30:
         return f"\n\n[{saat_str}] {metin}"
@@ -36,7 +42,24 @@ class NotebookManager:
         ]
         self.aktif_defter_index = 0
         self.son_kayit_zamani = 0
-        self.son_kayit_tarihi = ""
+        self.son_kayit_tarihi = self._dosyadaki_son_tarihi_bul(self.aktif_defter_dosyasi)
+
+    def _dosyadaki_son_tarihi_bul(self, dosya_yolu):
+        """Dosyadaki en son '--- DD.MM.YYYY ---' ayraç tarihini tespit eder."""
+        if not os.path.exists(dosya_yolu):
+            return ""
+        try:
+            with open(dosya_yolu, "r", encoding="utf-8") as f:
+                satirlar = f.readlines()
+                for line in reversed(satirlar):
+                    line = line.strip()
+                    if line.startswith("--- ") and line.endswith(" ---"):
+                        parcalar = line.replace("-", "").strip().split(".")
+                        if len(parcalar) == 3:
+                            return f"{parcalar[2]}-{parcalar[1]}-{parcalar[0]}"
+        except Exception:
+            pass
+        return ""
 
     @property
     def aktif_defter_adi(self):
@@ -50,7 +73,7 @@ class NotebookManager:
         if 0 <= index < len(self.defterler):
             self.aktif_defter_index = index
             self.son_kayit_zamani = 0
-            self.son_kayit_tarihi = ""
+            self.son_kayit_tarihi = self._dosyadaki_son_tarihi_bul(self.aktif_defter_dosyasi)
             logger.info(f">> [Defter] Aktif: {self.aktif_defter_adi}")
 
     def son_satirlari_oku(self, satir_sayisi=2):
@@ -84,26 +107,17 @@ class NotebookManager:
 
             dosya_dolu = os.path.exists(dosya_yolu) and os.path.getsize(dosya_yolu) > 0
 
-            is_todo = (self.aktif_defter_adi == "Yapılacaklar")
-            is_bullet = metin.startswith(("-", "*", "•", "1.", "2.", "3.", "4.", "5.")) or metin.lower().startswith("madde")
-
-            if is_todo and not metin.startswith(("[ ]", "[x]", "- [ ]")):
-                metin = f"[ ] {metin}"
-
             with open(dosya_yolu, "a", encoding="utf-8") as f:
                 if bugun != self.son_kayit_tarihi:
                     tarih_str = time.strftime("%d.%m.%Y")
-                    ayrac = f"\n\n--- {tarih_str} ---\n[{saat}] " if dosya_dolu else f"# VEIKK VK640 - {self.aktif_defter_adi}\n\n--- {tarih_str} ---\n[{saat}] "
-                    f.write(ayrac + metin)
-                elif is_todo or is_bullet:
-                    f.write("\n" + metin)
-                elif gecen_sure > 30:
-                    f.write(f"\n\n[{saat}] " + metin)
+                    baslik = f"# InkScribe Pro - {self.aktif_defter_adi}\n\n" if not dosya_dolu else ""
+                    ayrac = f"{baslik}--- {tarih_str} ---\n[{saat}] " if not dosya_dolu else f"\n\n--- {tarih_str} ---\n[{saat}] "
+                    is_todo = (self.aktif_defter_adi == "Yapılacaklar")
+                    icerik = f"[ ] {metin}" if is_todo and not metin.startswith(("[ ]", "[x]", "- [ ]")) else metin
+                    f.write(ayrac + icerik)
                 else:
-                    if metin.startswith((".", ",", "!", "?", ":", ";")):
-                        f.write(metin)
-                    else:
-                        f.write(" " + metin)
+                    bicimli = metin_ekleme_bicimlendir(metin, self.aktif_defter_adi, gecen_sure, saat)
+                    f.write(bicimli)
 
             self.son_kayit_zamani = suan_ts
             self.son_kayit_tarihi = bugun
@@ -113,10 +127,10 @@ class NotebookManager:
 
     def notlar_dosyasini_ac(self):
         dosya_yolu = self.aktif_defter_dosyasi
-        if not os.path.exists(dosya_yolu):
-            with open(dosya_yolu, "w", encoding="utf-8") as f:
-                f.write(f"# VEIKK VK640 - {self.aktif_defter_adi}\n\n")
         try:
+            if not os.path.exists(dosya_yolu):
+                with open(dosya_yolu, "w", encoding="utf-8") as f:
+                    f.write(f"# InkScribe Pro - {self.aktif_defter_adi}\n\n")
             os.startfile(dosya_yolu)
         except Exception as e:
-            logger.error(f"Dosya açma hatası: {e}")
+            logger.error(f"Dosya açılamadı: {e}")

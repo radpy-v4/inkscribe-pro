@@ -50,10 +50,10 @@ class TrayManager:
             pystray.MenuItem("❌ Programdan Çık", lambda icon, item: self.app.root.after(0, self.app.programi_kapat))
         )
 
-        self.tray_icon = pystray.Icon("TabletNotAlici", icon_img, "VEIKK Tablet Not Alıcı Pro", menu)
+        self.tray_icon = pystray.Icon("InkScribePro", icon_img, "InkScribe Pro", menu)
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
 
-    def notify(self, message, title="VEIKK Not Alıcı Pro"):
+    def notify(self, message, title="InkScribe Pro"):
         if self.tray_icon:
             try:
                 self.tray_icon.notify(message, title)

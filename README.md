@@ -16,23 +16,27 @@
 ## 🌟 Highlights
 
 - **⚡ Hybrid Recognition Engine:**
-  - **Offline (Windows Ink):** Ultra-fast, zero-latency local handwriting recognition powered by native Windows Ink APIs. No internet connection required.
-  - **Online (Google Gemini Vision AI):** High-accuracy cloud AI recognition for cursive, complex handwriting, or shorthand using `gemini-2.5-flash` and `gemini-3.5-flash`.
-  - **Instant OCR & Resilient Model Fallback:** Optimized with `thinkingBudget: 0` for lightning-fast ~0.3s response times. Automatically fails over to the next candidate model if a model is deprecated (HTTP 404), or drops seamlessly to offline Windows Ink.
+  - **Offline (Windows Ink):** Ultra-fast 30ms local handwriting recognition powered by native Windows Ink APIs. No internet connection required.
+  - **Online (Google Gemini Vision AI):** High-accuracy cloud AI recognition using ultra-fast **`gemini-3.5-flash-lite`** (~1.2s) with fallback to **`gemini-3-flash-preview`**.
+  - **Resilient Fallback & Quota Protection:** Automatically fails over to the next candidate model or drops smoothly to offline Windows Ink if network drops or rate limits occur.
+- **🛡️ Explicit Privacy Consent:**
+  - Handwriting drawings are **never** transmitted to Google Cloud without explicit user confirmation via an interactive GUI dialog (`tkinter.messagebox.askyesno`).
+- **⌨️ Natural Word-Spaced Auto-Type:**
+  - Recognized words automatically append trailing whitespace when pasted into your active application (Word, Notion, VS Code, Browser), preventing consecutive handwritten words from sticking together.
 - **💬 Live 2-Line Note Preview & Floating Toast Notifications:**
   - Displays the last 2 recognized notes directly on the pad's footer in real-time.
   - Automatically loads and displays the latest notes whenever you switch between notebooks.
   - Displays non-intrusive, temporary toast alerts (e.g., when undo is blocked) with distinct background shading.
 - **🖥️ Dual Display Modes with Non-Activating Focus:**
-  - **Floating Mini Pad:** Sleek dark-glass PIP (picture-in-picture) notepad that floats on top of your apps. Movable and resizable (min 680 px width). Equipped with Win32 `WS_EX_NOACTIVATE` so it never steals keyboard focus from Word, your browser, or code editor.
+  - **Floating Mini Pad:** Sleek dark-glass PIP (picture-in-picture) notepad that floats on top of your apps. Movable and resizable (DPI scaled). Equipped with Win32 `WS_EX_NOACTIVATE` so it never steals keyboard focus from Word, your browser, or code editor.
   - **Transparent Full-Screen Overlay:** Annotate and take notes directly over your entire screen.
 - **↶ Smart Undo Buffer:**
-  - Stylus-friendly **`[↶ Geri]`** top bar button and **`Ctrl + Z`** keyboard shortcut.
+  - Stylus-friendly **`[↶]`** top bar button and **`Ctrl + Z`** keyboard shortcut in Full-Screen mode.
   - Protects against accidental scratch-outs or clears without contaminating the restored canvas with scribble lines.
   - Simultaneously reconstructs both the PIL image and native Windows Ink stroke containers.
 - **✍️ Intuitive In-Pad Gestures:**
   - **Scratch-out:** Scribble over your drawing to instantly wipe the canvas clean (protected by oscillation density checks against cursive words).
-  - **Vertical Stroke:** A quick downward stroke creates a newline immediately (asynchronously queued if an active conversion is in progress).
+  - **Vertical Stroke:** A quick downward stroke creates a newline immediately (converts existing text first if present, then queues newline).
 - **📚 Multi-Notebook Management:**
   - Switch seamlessly between designated notebooks (e.g. *Lecture Notes*, *To-Do List*, *Ideas*) with automatic `.txt` file persistence.
 - **🛡️ Privacy-First Logging & 0% Idle CPU:**
@@ -44,14 +48,21 @@
 
 ## ⌨️ Controls & Shortcuts
 
-| Shortcut / Button | Description |
-| :--- | :--- |
-| **`F8`** | Toggle Note Pad display (Global Hotkey) |
-| **`F9`** | Switch between Floating Mini Pad and Full-Screen Mode |
-| **`[↶ Geri]` / `Ctrl + Z`** | Undo last cleared or scratched-out drawing |
-| **`Enter`** | Convert drawing to text immediately |
-| **`Esc`** | Hide drawing pad |
-| **`Shift + Esc`** | Exit application completely |
+| Shortcut / Button | Supported Mode | Description |
+| :--- | :--- | :--- |
+| **`F8`** | Global (Always) | Toggle Note Pad display (configurable in config.json) |
+| **`F9`** | Global (Always) | Switch between Floating Mini Pad and Full-Screen Mode |
+| **`[↶]` Button** | Mini Pad & Full-Screen | Undo last cleared or scratched-out drawing |
+| **`[Temizle]` Button** | Mini Pad & Full-Screen | Clear canvas (saved to undo buffer) |
+| **`Vertical Flick`** | Stylus / Pen Gesture | Add new line / Enter in active notebook (converts text first if written) |
+| **`Scratch-out`** | Stylus / Pen Gesture | Erase stroke and clear pad (recoverable via ↶ button) |
+| **`Ctrl + Z`** | Full-Screen Mode | Undo last cleared drawing |
+| **`Enter`** | Full-Screen Mode | Convert drawing to text immediately |
+| **`Esc`** | Full-Screen Mode | Hide drawing pad |
+| **`Shift + Esc`** | Full-Screen Mode | Exit application completely |
+
+> **ℹ️ Keyboard Focus in Mini Pad Mode:**  
+> The Floating Mini Pad utilizes Windows `WS_EX_NOACTIVATE` window styling so your background application (Word, Notion, VS Code, Browser, etc.) keeps its physical typing focus and text cursor untouched while you write notes with your stylus. Therefore, hardware keyboard strokes (`Esc`, `Enter`, `Ctrl+Z`) continue to route to your underlying app. In Floating Mini Pad mode, all interactions are performed directly via stylus/touch controls (`[↶]`, `[Temizle]`, `[✕]` buttons and gestures). Keyboard shortcuts are active in **Full-Screen** overlay mode.
 
 ---
 
@@ -84,13 +95,12 @@ Open `config.json` and insert your [Google AI Studio](https://aistudio.google.co
 ```json
 {
     "gemini_api_key": "YOUR_GEMINI_API_KEY",
-    "gemini_model": "gemini-3.5-flash",
+    "gemini_model": "gemini-3.5-flash-lite",
     "model_adaylari": [
-        "gemini-3.5-flash",
-        "gemini-flash-latest",
-        "gemini-2.5-flash"
+        "gemini-3.5-flash-lite",
+        "gemini-3-flash-preview"
     ],
-    "gemini_timeout": 5.0,
+    "gemini_timeout": 3.5,
     "ai_modu_aktif": true
 }
 ```
@@ -113,7 +123,7 @@ Press **`F8`** anywhere in Windows to bring up the notepad and start writing wit
 
 Run the hardware-independent logic and algorithm test suite:
 ```bash
-pytest tests/test_logic.py -v
+python -m unittest tests/test_logic.py
 ```
 
 ---
@@ -125,7 +135,7 @@ You can package the application into a standalone Windows binary using PyInstall
 ```bash
 pyinstaller TabletNotAlici.spec
 ```
-The compiled executable will be located in `dist/TabletNotAlici.exe`.
+The compiled single-file executable will be located in `dist/TabletNotAlici.exe`. In standalone mode, user settings, notebooks, and logs are safely and persistently stored under `%APPDATA%\InkScribePro` to prevent temporary `_MEIPASS` data loss.
 
 ---
 
@@ -145,7 +155,7 @@ TABLET_ELYAZİ/
 │   └── ui.py            # ArkaPlanNotDonusturucu: Dual-mode UI, drawing canvas & workflow
 ├── app.py               # Lightweight main entry point
 ├── tests/
-│   └── test_logic.py    # Hardware-independent unit test suite (16 tests)
+│   └── test_logic.py    # Hardware-independent unit test suite (28 tests)
 ├── TabletNotAlici.spec  # PyInstaller build specification
 └── config.json          # User configuration
 ```

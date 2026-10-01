@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 from PIL import Image, ImageDraw, ImageChops, ImageTk
 import threading
 import time
@@ -21,13 +22,33 @@ except ImportError:
             self.y = float(y)
 
 
-from .config import APP_DIR, DEBUG_KAYDET, logger, ConfigManager
+from .config import APP_DIR, DEBUG_KAYDET, logger, ConfigManager, setup_logging
 from .gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi
 from .storage import NotebookManager
 from .engine import RecognitionEngine
 from .tray import TrayManager
 
-user32 = ctypes.windll.user32
+# Windows DPI Farkındalığı (Tkinter 8.6 için en kararlı mod: PROCESS_SYSTEM_DPI_AWARE = 1)
+user32 = None
+if hasattr(ctypes, "windll"):
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+    user32 = getattr(ctypes.windll, "user32", None)
+
+
+def get_dpi_scale(root):
+    """Monitörün DPI ölçekleme oranını hesaplar (96 DPI = 1.0, 144 DPI = 1.5, 192 DPI = 2.0)."""
+    try:
+        fpixels = root.winfo_fpixels('1i')
+        scale = float(fpixels) / 96.0
+        return max(1.0, min(scale, 3.0))
+    except Exception:
+        return 1.0
 
 
 class ArkaPlanNotDonusturucu:
@@ -38,20 +59,21 @@ class ArkaPlanNotDonusturucu:
 
         # Modüller
         self.config = ConfigManager(APP_DIR)
-        self.storage = NotebookManager(APP_DIR)
+        self.storage = NotebookManager(self.config.notes_dir)
         self.engine = RecognitionEngine()
         self.tray = TrayManager(self)
 
-        # Ekran boyutları
+        # Ekran boyutları ve DPI Ölçekleme
         self.ekran_genislik = self.root.winfo_screenwidth()
         self.ekran_yukseklik = self.root.winfo_screenheight()
+        self.dpi_scale = get_dpi_scale(self.root)
 
         # Çift Mod Ayarları: Yüzen Mini Pad (Varsayılan) ve Tam Ekran
         self.tam_ekran_mi = False
-        self.pad_genislik = 880
-        self.pad_yukseklik = 420
-        self.pad_x = max(20, self.ekran_genislik - 910)
-        self.pad_y = max(20, self.ekran_yukseklik - 480)
+        self.pad_genislik = int(880 * self.dpi_scale)
+        self.pad_yukseklik = int(420 * self.dpi_scale)
+        self.pad_x = max(20, self.ekran_genislik - self.pad_genislik - int(30 * self.dpi_scale))
+        self.pad_y = max(20, self.ekran_yukseklik - self.pad_yukseklik - int(60 * self.dpi_scale))
         self.boyutlandiriliyor = False
 
         # Başlangıç pencere konfigürasyonu
@@ -76,6 +98,7 @@ class ArkaPlanNotDonusturucu:
         self.surukleniyor = False
         self.cizim_yapildi = False
         self.bekleyen_yeni_satir = 0
+        self.debounce_timer_id = None
 
         # Odak takibi ve Toast
         self.son_hedef_hwnd = None
@@ -115,41 +138,113 @@ class ArkaPlanNotDonusturucu:
         # Başlangıçta pencereyi gizle
         self.root.withdraw()
 
-        # Global Kısayol Dinleyicisi
-        def _f8_tetiklendi():
+        # Global Kısayol Dinleyicisi (Config ile özelleştirilebilir, IDE çakışmalarını önler)
+        def _toggle_tetiklendi():
             try:
-                cur_hwnd = user32.GetForegroundWindow()
-                my_hwnd = self.root.winfo_id()
-                parent_hwnd = user32.GetParent(my_hwnd) if my_hwnd else None
-                if cur_hwnd and cur_hwnd not in (my_hwnd, parent_hwnd):
-                    self.son_hedef_hwnd = cur_hwnd
+                if user32:
+                    cur_hwnd = user32.GetForegroundWindow()
+                    my_hwnd = self.root.winfo_id()
+                    parent_hwnd = user32.GetParent(my_hwnd) if my_hwnd else None
+                    if cur_hwnd and cur_hwnd not in (my_hwnd, parent_hwnd):
+                        self.son_hedef_hwnd = cur_hwnd
             except Exception:
                 pass
             self.root.after(0, self.toggle_yazma_modu)
 
         if keyboard is not None:
-            self.hotkey_listener = keyboard.GlobalHotKeys({
-                '<f8>': _f8_tetiklendi,
-                '<f9>': lambda: self.root.after(0, self.toggle_tam_ekran)
-            })
-            self.hotkey_listener.start()
+            hk_toggle = getattr(self.config, 'hotkey_toggle', '<f8>') or '<f8>'
+            hk_full = getattr(self.config, 'hotkey_fullscreen', '<f9>') or '<f9>'
+            if hk_toggle.strip().lower() == hk_full.strip().lower():
+                logger.warning(f"[Hotkey Uyarısı] hotkey_toggle ve hotkey_fullscreen aynı olamaz ('{hk_toggle}'). Varsayılanlara dönülüyor.")
+                hk_toggle = '<f8>'
+                hk_full = '<f9>'
+
+            def _kur_dinleyici(t_key, f_key):
+                return keyboard.GlobalHotKeys({
+                    t_key: _toggle_tetiklendi,
+                    f_key: lambda: self.root.after(0, self.toggle_tam_ekran)
+                })
+
+            try:
+                self.hotkey_listener = _kur_dinleyici(hk_toggle, hk_full)
+                self.hotkey_listener.start()
+            except Exception as e:
+                logger.warning(f"[Hotkey Hatası] '{hk_toggle}' veya '{hk_full}' geçersiz ({e}). Varsayılan '<f8>' ve '<f9>' deneniyor...")
+                hk_toggle = '<f8>'
+                hk_full = '<f9>'
+                try:
+                    self.hotkey_listener = _kur_dinleyici(hk_toggle, hk_full)
+                    self.hotkey_listener.start()
+                except Exception as ex:
+                    logger.error(f"[Hotkey Kritik Hata] Global kısayol dinleyicisi başlatılamadı: {ex}")
+                    self.hotkey_listener = None
         else:
             self.hotkey_listener = None
 
         # Sistem Tepsisi
         self.tray.baslat()
 
+        hk_t_str = getattr(self.config, 'hotkey_toggle', '<f8>').upper().strip('<>')
+        hk_f_str = getattr(self.config, 'hotkey_fullscreen', '<f9>').upper().strip('<>')
         logger.info("[3/3] Dinleyici aktif!")
-        logger.info("      [F8] = Not Pedini Göster/Gizle")
-        logger.info("      [F9] = Yüzen Mini Pad / Tam Ekran Değiştir")
-        logger.info("      [↶ / Ctrl+Z] = Silinen Çizimi Geri Al")
-        logger.info("      Jestler: Karalama = Temizle, Dikey Çizgi = Enter / Yeni Satır.")
+        logger.info(f"      [{hk_t_str}] = Not Pedini Göster/Gizle")
+        logger.info(f"      [{hk_f_str}] = Yüzen Mini Pad / Tam Ekran Değiştir")
+        logger.info("      [↶ / Buton] = Silinen Çizimi Geri Al")
+        logger.info("      Jestler: Karalama = Temizle, Hızlı Dikey Çizgi = Enter / Yeni Satır.")
 
-        # Arka Plan Zamanlayıcısı
-        threading.Thread(target=self.zamanlayici_dongusu, daemon=True).start()
+        # Başlangıç denetimleri (notes_dir fallback uyarısı ve AI gizlilik onayı)
+        self.root.after(400, self._baslangic_kontrolleri)
+
+    def _baslangic_kontrolleri(self):
+        """Uygulama açılışında dizin erişilebilirliği ve AI gizlilik onayı durumunu denetler."""
+        if getattr(self.config, 'notes_dir_fallback_olustu', False):
+            self.alt_cubuk_gecici_mesaj(
+                f"⚠️ notes_dir erişilemedi! Notlar uygulama dizinine ({self.config.app_dir}) kaydediliyor.",
+                sure=5.0
+            )
+
+        # Kullanıcı API anahtarı eklemiş ama henüz açık onay vermemişse sor
+        if self.config.gemini_api_key and not getattr(self.config, 'ai_onay_verildi', False) and self.config.ai_modu_aktif:
+            self._ai_onay_iste()
+
+    def _ai_onay_iste(self):
+        """Kullanıcıdan el yazısı görüntülerinin Google Gemini API'ye gönderilmesi için açık onay ister."""
+        baslik = "InkScribe Pro - AI Bulut Tanıma Onayı"
+        soru = (
+            "Gemini Vision AI modu ile Türkçe el yazısı tanıma kalitesini artırabilirsiniz.\n\n"
+            "GİZLİLİK VE VERİ BİLDİRİMİ:\n"
+            "Bu özellik aktifken, tabletinizde yazdığınız el yazısı görsel kırpıntıları "
+            "metne dönüştürülmek üzere şifreli bağlantıyla Google Cloud (Gemini API) sunucularına iletilir.\n\n"
+            "El yazısı görüntülerinizin Google'a iletilmesini onaylıyor musunuz?"
+        )
+        try:
+            onay = messagebox.askyesno(baslik, soru, icon="question", default="yes", parent=self.root)
+        except Exception:
+            onay = messagebox.askyesno(baslik, soru, icon="question", default="yes")
+
+        if onay:
+            self.config.ai_onay_verildi = True
+            self.config.ai_modu_aktif = True
+            self.config.kaydet()
+            logger.info(">> [Gizlilik Onayı] Kullanıcı Gemini Vision bulut tanımayı ONAYLADI.")
+            self.alt_cubuk_gecici_mesaj("✅ Gemini Vision AI aktif edildi.", sure=2.5)
+            if self.yazma_modu_aktif:
+                self.butonlari_ciz()
+            return True
+        else:
+            self.config.ai_onay_verildi = False
+            self.config.ai_modu_aktif = False
+            self.config.kaydet()
+            logger.info(">> [Gizlilik Onayı] Kullanıcı reddetti. AI Modu kapatıldı (100% Çevrimdışı Mod).")
+            self.alt_cubuk_gecici_mesaj("ℹ️ AI Modu kapatıldı. Sadece çevrimdışı Windows Ink kullanılacak.", sure=3.5)
+            if self.yazma_modu_aktif:
+                self.butonlari_ciz()
+            return False
 
     def noactivate_ayarla(self):
         """Mini Pad modunda klavye odağını çalmayı engeller (WS_EX_NOACTIVATE)."""
+        if not user32:
+            return
         try:
             GWL_EXSTYLE = -20
             WS_EX_NOACTIVATE = 0x08000000
@@ -164,6 +259,8 @@ class ArkaPlanNotDonusturucu:
 
     def noactivate_kaldir(self):
         """Tam Ekran modunda WS_EX_NOACTIVATE kaldırılır."""
+        if not user32:
+            return
         try:
             GWL_EXSTYLE = -20
             WS_EX_NOACTIVATE = 0x08000000
@@ -258,10 +355,32 @@ class ArkaPlanNotDonusturucu:
             self.butonlari_ciz()
 
     def toggle_ai_modu(self, icon=None, item=None):
-        self.config.ai_modu_aktif = not self.config.ai_modu_aktif
-        self.config.kaydet()
-        durum = "⚡ Açık (Online Hibrit)" if self.config.ai_modu_aktif else "💻 Kapalı (Sadece Çevrimdışı)"
-        logger.info(f">> [Vision AI Modu] {durum}")
+        if not self.config.gemini_api_key:
+            self.alt_cubuk_gecici_mesaj("⚠️ Gemini API anahtarı girilmemiş (config.json veya GEMINI_API_KEY).", sure=3.5)
+            self.config.ai_modu_aktif = False
+            self.config.kaydet()
+            if self.yazma_modu_aktif:
+                self.butonlari_ciz()
+            return
+
+        if not self.config.ai_modu_aktif:
+            # AI açılmak isteniyor: Onay verilmemişse kullanıcıya açık onay sor
+            if not getattr(self.config, 'ai_onay_verildi', False):
+                onay = self._ai_onay_iste()
+                if not onay:
+                    return
+            else:
+                self.config.ai_modu_aktif = True
+                self.config.kaydet()
+                logger.info(">> [Vision AI Modu] ⚡ Açık (Online Hibrit)")
+                self.alt_cubuk_gecici_mesaj("⚡ AI Modu: Açık (Online Hibrit)", sure=2.0)
+        else:
+            # AI kapatılmak isteniyor
+            self.config.ai_modu_aktif = False
+            self.config.kaydet()
+            logger.info(">> [Vision AI Modu] 💻 Kapalı (Sadece Çevrimdışı)")
+            self.alt_cubuk_gecici_mesaj("💻 AI Modu: Kapalı (100% Çevrimdışı)", sure=2.0)
+
         if self.yazma_modu_aktif:
             self.butonlari_ciz()
 
@@ -276,9 +395,14 @@ class ArkaPlanNotDonusturucu:
         logger.info(f">> [Auto-Enter] Otomatik Enter Tuşu: {durum}")
 
     def programi_kapat(self):
-        logger.info("Tablet Not Alıcı kapatılıyor...")
-        self.tray.durdur()
-        self.hotkey_listener.stop()
+        logger.info("InkScribe Pro kapatılıyor...")
+        if self.tray:
+            self.tray.durdur()
+        if self.hotkey_listener:
+            try:
+                self.hotkey_listener.stop()
+            except Exception:
+                pass
         self.root.destroy()
         os._exit(0)
 
@@ -291,7 +415,7 @@ class ArkaPlanNotDonusturucu:
             pencere_gorunur = False
 
         if not pencere_gorunur:
-            self.tray.notify(mesaj, "VEIKK Not Alıcı Pro")
+            self.tray.notify(mesaj, "InkScribe Pro")
             return
 
         if self.toast_timer_id:
@@ -457,6 +581,13 @@ class ArkaPlanNotDonusturucu:
         return False
 
     def ekrani_temizle(self, yedekle=True):
+        if self.debounce_timer_id:
+            try:
+                self.root.after_cancel(self.debounce_timer_id)
+            except Exception:
+                pass
+            self.debounce_timer_id = None
+
         if yedekle and self.cizim_yapildi and self.tum_stroke_noktalari:
             self.son_silinen_resim = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
             self.son_silinen_stroke_noktalari = [list(pts) for pts in self.tum_stroke_noktalari]
@@ -500,8 +631,21 @@ class ArkaPlanNotDonusturucu:
         if not self.tam_ekran_mi and event.y >= h - 44:
             return
 
+        # Mini pad modunda klavye kısayollarının (Esc, Enter, Ctrl+Z) çalışabilmesi için iç odak ver
+        try:
+            self.canvas.focus_set()
+        except Exception:
+            pass
+
+        # Vuruş başladığında aktif debounce zamanlayıcısını durdur
+        if self.debounce_timer_id:
+            try:
+                self.root.after_cancel(self.debounce_timer_id)
+            except Exception:
+                pass
+            self.debounce_timer_id = None
+
         self.kalem_basili = True
-        self.cizim_yapildi = True
         self.son_x, self.son_y = event.x, event.y
         self.son_yazma_zamani = time.time()
         self.stroke_baslangic_zamani = time.time()
@@ -531,14 +675,14 @@ class ArkaPlanNotDonusturucu:
         if not self.kalem_basili:
             return
 
-        self.cizim_yapildi = True
         cizgi_w = 3 if not self.tam_ekran_mi else 5
         r = 1.5 if not self.tam_ekran_mi else 2.5
 
         if self.son_x is not None and self.son_y is not None:
             self.canvas.create_line(
                 self.son_x, self.son_y, event.x, event.y,
-                fill="#00ffcc", width=cizgi_w, capstyle=tk.ROUND, joinstyle=tk.ROUND, smooth=True
+                fill="#00ffcc", width=cizgi_w, capstyle=tk.ROUND, joinstyle=tk.ROUND, smooth=True,
+                tags=("cizim", "stroke_current")
             )
             self.draw.line([self.son_x, self.son_y, event.x, event.y], fill="black", width=cizgi_w)
             self.draw.ellipse([event.x - r, event.y - r, event.x + r, event.y + r], fill="black")
@@ -551,27 +695,50 @@ class ArkaPlanNotDonusturucu:
     def jestleri_kontrol_et(self):
         gecen_sure = time.time() - self.stroke_baslangic_zamani
 
-        # 1. Hızlı dikey çizgi (Enter / Yeni Satır)
-        if dikey_cizgi_jesti_mi(self.aktif_noktalar, gecen_sure):
+        # 1. Hızlı dikey çizgi (Enter / Yeni Satır - DPI duyarlı eşikler)
+        scale = getattr(self, 'dpi_scale', 1.0)
+        dy_min = int(130 * scale)
+        dx_max = int(30 * scale)
+        if dikey_cizgi_jesti_mi(self.aktif_noktalar, gecen_sure, dy_min=dy_min, dx_max=dx_max):
             logger.info(">> [JEST] Hızlı Dikey Çizgi: Enter (Yeni Satır)!")
-            if self.tum_stroke_noktalari:
-                self.son_silinen_resim = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
-                self.son_silinen_stroke_noktalari = [list(pts) for pts in self.tum_stroke_noktalari]
+            self.canvas.delete("stroke_current")
+            self.aktif_noktalar = []
+
+            # Görüntüdeki dikey çizgi izini derhal sil ve yalnızca onaylanmış vuruşları koru
+            self.image = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
+            self.draw = ImageDraw.Draw(self.image)
+
+            onceki_yazi_var = bool(self.tum_stroke_noktalari)
 
             if self.isleniyor:
+                # Arka planda dönüşüm sürerken dikey çizgi çekildi: sadece yeni satırı sıraya al
                 self.bekleyen_yeni_satir += 1
-                logger.info(f">> [JEST Sıralama] Dönüşüm sürdüğü için yeni satır yanıttan sonraya sıraya alındı (Bekleyen: {self.bekleyen_yeni_satir}).")
-            else:
-                self.storage.yeni_satir_ekle()
-                if self.otomatik_enter:
-                    threading.Thread(target=self._arka_planda_enter_bas, daemon=True).start()
+                logger.info(">> [JEST] Dönüşüm sürerken dikey çizgi: Yeni satır kuyruğa eklendi.")
+                return True
 
-            self.ekrani_temizle(yedekle=False)
+            if onceki_yazi_var:
+                # Tuvalde halihazırda yazılmış metin var:
+                self.bekleyen_yeni_satir += 1
+                logger.info(">> [JEST] Yazılmış metin tespit edildi; önce metin dönüştürülecek, ardından yeni satır eklenecek.")
+                self.tetikle_donusturme()
+            else:
+                # Tuval boştu (öncesinde yazı yoktu): doğrudan yeni satır ekle
+                self.bekleyen_yeni_satir += 1
+                adet = self.bekleyen_yeni_satir
+                self.bekleyen_yeni_satir = 0
+                for _ in range(adet):
+                    self.storage.yeni_satir_ekle()
+                if self.otomatik_enter:
+                    threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
+                self.ekrani_temizle(yedekle=False)
+
             return True
 
         # 2. Karalama ile Silme Jesti (Scratch-out)
         if karalama_jesti_mi(self.aktif_noktalar):
             logger.info(">> [JEST] Karalama: Ekran temizlendi! (Geri almak için ↶ butonu)")
+            self.canvas.delete("stroke_current")
+            self.aktif_noktalar = []
             if self.tum_stroke_noktalari:
                 self.son_silinen_resim = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
                 self.son_silinen_stroke_noktalari = [list(pts) for pts in self.tum_stroke_noktalari]
@@ -602,7 +769,10 @@ class ArkaPlanNotDonusturucu:
             self.aktif_noktalar = []
             return
 
-        # Tekil dokunuşları güçlendir
+        # Jest değil, normal çizim vuruşu: "stroke_current" etiketini kalıcı çizime çevir
+        self.canvas.dtag("stroke_current")
+
+        # Tekil dokunuşları güçlendir (nokta / tırnak / virgül)
         if len(self.aktif_noktalar) == 1:
             p = self.aktif_noktalar[0]
             self.aktif_noktalar = [
@@ -624,14 +794,46 @@ class ArkaPlanNotDonusturucu:
                 except Exception as e:
                     logger.error(f"[Stroke Hatası]: {e}")
             self.tum_stroke_noktalari.append(list(self.aktif_noktalar))
+            self.cizim_yapildi = True
 
         self.aktif_noktalar = []
+
+        # Otomatik dönüştürme için olay tabanlı debounce zamanlayıcısı kur (Sıfır boşta CPU)
+        self._debounce_kur()
+
+    def _debounce_kur(self):
+        """Çizim yapılmışsa ve arka planda aktif dönüşüm yoksa otomatik dönüştürme zamanlayıcısını kurar."""
+        if self.debounce_timer_id:
+            try:
+                self.root.after_cancel(self.debounce_timer_id)
+            except Exception:
+                pass
+            self.debounce_timer_id = None
+
+        if self.cizim_yapildi and not self.isleniyor:
+            gecen = time.time() - getattr(self, 'son_yazma_zamani', time.time())
+            kalan_ms = int(max(0.06, self.bekleme_suresi - gecen) * 1000)
+            self.debounce_timer_id = self.root.after(
+                kalan_ms, self._otomatik_donustur_tetikle
+            )
+
+    def _otomatik_donustur_tetikle(self):
+        self.debounce_timer_id = None
+        if self.yazma_modu_aktif and self.cizim_yapildi and not self.kalem_basili and not self.isleniyor and not self.surukleniyor:
+            self.tetikle_donusturme()
 
     def aninda_donustur(self):
         if not self.isleniyor:
             self.tetikle_donusturme()
 
     def tetikle_donusturme(self):
+        if self.debounce_timer_id:
+            try:
+                self.root.after_cancel(self.debounce_timer_id)
+            except Exception:
+                pass
+            self.debounce_timer_id = None
+
         if not self.cizim_yapildi:
             return
 
@@ -652,14 +854,6 @@ class ArkaPlanNotDonusturucu:
             threading.Thread(target=self.metne_donustur, args=(strokes_to_process, islem_resmi, bbox), daemon=True).start()
         else:
             self.cizim_yapildi = False
-
-    def zamanlayici_dongusu(self):
-        while True:
-            time.sleep(0.2)
-            suan = time.time()
-            if self.yazma_modu_aktif and self.cizim_yapildi and not self.kalem_basili and not self.isleniyor and not self.surukleniyor:
-                if (suan - self.son_yazma_zamani) > self.bekleme_suresi:
-                    self.root.after(0, self.tetikle_donusturme)
 
     def metne_donustur(self, stroke_container, resim, bbox):
         metin_bulundu = False
@@ -698,22 +892,30 @@ class ArkaPlanNotDonusturucu:
             self.root.after(0, lambda: self.alt_cubuk_gecici_mesaj("⚠️ Tanıma sırasında bir hata oluştu."))
         finally:
             if not metin_bulundu:
-                self.isleniyor = False
-                if self.bekleyen_yeni_satir > 0:
-                    adet = self.bekleyen_yeni_satir
-                    self.bekleyen_yeni_satir = 0
-                    for _ in range(adet):
-                        self.storage.yeni_satir_ekle()
-                    if self.otomatik_enter:
-                        threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
+                self.root.after(0, self._donusturme_tamamlandi_bos)
+
+    def _donusturme_tamamlandi_bos(self):
+        """Metin algılanamadığında veya hata durumunda ana UI thread'inde güvenle çalışır."""
+        self.isleniyor = False
+        if self.bekleyen_yeni_satir > 0:
+            adet = self.bekleyen_yeni_satir
+            self.bekleyen_yeni_satir = 0
+            for _ in range(adet):
+                self.storage.yeni_satir_ekle()
+            if self.otomatik_enter:
+                threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
+        self._debounce_kur()
 
     def panoya_ve_dosyaya_aktar(self, metin):
         try:
+            # Aktif uygulamaya yapıştırırken kelimelerin birbirine yapışmasını önlemek için sonuna boşluk ekle
+            yapistirilacak = metin if metin.endswith((" ", "\n", "\t")) else (metin + " ")
+
             pano_basarili = False
             for _ in range(3):
                 try:
                     self.root.clipboard_clear()
-                    self.root.clipboard_append(metin)
+                    self.root.clipboard_append(yapistirilacak)
                     self.root.update()
                     pano_basarili = True
                     logger.info(">> [Pano] Metin panoya kopyalandı! (Ctrl + V)")
@@ -746,11 +948,14 @@ class ArkaPlanNotDonusturucu:
 
         finally:
             self.isleniyor = False
+            self.root.after(0, self._debounce_kur)
 
     def _arka_planda_enter_bas(self, adet=1):
+        if keyboard is None:
+            return
         time.sleep(0.05)
         try:
-            if self.tam_ekran_mi and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
+            if user32 and self.tam_ekran_mi and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
                 user32.SetForegroundWindow(self.son_hedef_hwnd)
                 time.sleep(0.05)
             kb = keyboard.Controller()
@@ -763,9 +968,11 @@ class ArkaPlanNotDonusturucu:
             logger.error(f"Auto-Enter Hatası: {e}")
 
     def _arka_planda_yapistir_ve_enter(self, enter_adet=0):
+        if keyboard is None:
+            return
         time.sleep(0.12)
         try:
-            if self.tam_ekran_mi and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
+            if user32 and self.tam_ekran_mi and self.son_hedef_hwnd and user32.IsWindow(self.son_hedef_hwnd):
                 user32.SetForegroundWindow(self.son_hedef_hwnd)
                 time.sleep(0.08)
 
@@ -787,6 +994,7 @@ class ArkaPlanNotDonusturucu:
 
 
 def main():
+    setup_logging(APP_DIR)
     root = tk.Tk()
     app = ArkaPlanNotDonusturucu(root)
     root.mainloop()

@@ -15,23 +15,27 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 ## ✨ Öne Çıkan Özellikler
 
 - **🤖 Hibrit El Yazısı Tanıma:**
-  - **Offline (Windows Ink):** İnternet olmadan doğrudan Windows'un yerel el yazısı motoruyla hızlı ve kesintisiz çevrim.
-  - **Online (Gemini Vision AI):** Güncel `gemini-2.5-flash` ve `gemini-3.5-flash` modelleriyle karmaşık el yazılarını en yüksek doğrulukla çözümleme.
-  - **Işık Hızında OCR & Akıllı Fallback:** Modelin düşünme süresi sıfırlanarak (`thinkingBudget: 0`) 0.3 saniyede yanıt alınır. Model kapanması veya 404 durumunda otomatik olarak sıradaki yedek modele geçer; internet yoksa kesintisiz yerel Windows Ink motoruna düşer.
+  - **Offline (Windows Ink):** İnternet olmadan doğrudan Windows'un yerel el yazısı motoruyla 30 milisaniyede (0.03 sn) ışık hızında çevrim.
+  - **Online (Gemini Vision AI):** Ultra hızlı ve yüksek kotalı **`gemini-3.5-flash-lite`** (~1.2 sn) ve yedek **`gemini-3-flash-preview`** modelleriyle karmaşık el yazılarını en yüksek doğrulukla çözümleme.
+  - **Akıllı Fallback & Kota Koruması:** İnternet kesilirse veya model yanıt vermezse kesintisiz yerel Windows Ink motoruna otomatik düşer.
+- **🛡️ Açık Gizlilik Onayı (Privacy Consent):**
+  - El yazısı görüntüleri, kullanıcıdan grafik onay diyaloğu (`tkinter.messagebox.askyesno`) alınmadıkça **asla** Google sunucularına gönderilmez; onay verilene kadar uygulama %100 çevrimdışı yerel modda kalır.
+- **⌨️ Doğal Kelime Boşluklu Auto-Type:**
+  - Dönüştürülen her kelime aktif uygulamanıza (Word, Notion, VS Code vb.) yapıştırılırken kelime sonuna otomatik boşluk eklenir; böylece kelimeler birbirine yapışmaz, doğal daktilo gibi aralıklı yazılır.
 - **💬 Canlı 2 Satır Not Önizlemesi & Çakışmasız Toast Bildirimleri:**
   - Dönüştürülen son 2 notu pedin altındaki şık şeritte anlık olarak görüntüler.
   - Defterler arasında geçiş yapıldığında ilgili defterdeki son notları otomatik olarak yükler.
   - Hatalı veya engellenen işlemlerde şık ve çakışmasız geçici uyarı kutuları (toast) gösterir.
 - **🖥️ Çift Çalışma Modu & Odak Koruma:**
-  - **Yüzen Mini Pad (Floating Pad):** Ekranın köşesinde modern koyu cam temalı, boyutlandırılabilir (min. 680 px) ve taşınabilir pratik not alanı. Windows `WS_EX_NOACTIVATE` stili sayesinde arkadaki Word, tarayıcı veya kod editörünün klavye odağını asla çalmaz.
+  - **Yüzen Mini Pad (Floating Pad):** Ekranın köşesinde modern koyu cam temalı, boyutlandırılabilir (DPI duyarlı) ve taşınabilir pratik not alanı. Windows `WS_EX_NOACTIVATE` stili sayesinde arkadaki Word, tarayıcı veya kod editörünün klavye odağını asla çalmaz.
   - **Yarı Saydam Tam Ekran (Canvas Overlay):** Tüm ekran üzerine serbestçe yazıp not alma modu.
 - **↶ Akıllı Geri Al (Undo) Mekanizması:**
-  - Kalemle tek tıkla basılabilen **`[↶ Geri]`** butonu ve **`Ctrl + Z`** kısayolu.
+  - Kalemle tek tıkla basılabilen **`[↶ Geri]`** butonu ve Tam Ekran modunda **`Ctrl + Z`** kısayolu.
   - Karalama veya dikey çizgi jestleri yapıldığında yazınız çöpe gitmez; çizgi lekesi olmadan tertemiz geri çağrılabilir.
   - Hem Canvas görselini hem de yerel Windows Ink vuruşlarını (strokes) eşzamanlı geri yükler.
 - **✍️ Akıllı Jestler (Gestures):**
   - **Karalama (Scratch-out):** Yazının üzerini karaladığınızda ped temizlenir (bitişik el yazısıyla karışmaması için yoğunluk korumalıdır).
-  - **Dikey Hızlı Çizgi (Enter):** Doğal bir aşağı kaydırma hareketiyle deftere yeni satır ekler; dönüşüm sürüyorsa satırı sıraya alıp yanıttan sonraya doğru sırayla ekler (Tepsiden "Otomatik Enter Tuşu" açılarak harici uygulamalara da Enter basılabilir).
+  - **Dikey Hızlı Çizgi (Enter):** Doğal bir aşağı fiske hareketiyle deftere yeni satır ekler; tuvalde yazı varsa önce dönüştürür, ardından yeni satırı kuyruğa alır (Tepsiden "Otomatik Enter Tuşu" açılarak harici uygulamalara da Enter basılabilir).
 - **📚 Çoklu Defter Yönetimi:**
   - `Ders Notları`, `Yapılacaklar`, `Fikirler` gibi farklı sekmeler arasında tek tıkla geçiş ve otomatik dosya kaydı (`.txt`).
 - **🛡️ Gizlilik Odaklı Loglama & %0 Boşta CPU:**
@@ -43,14 +47,21 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 
 ## ⌨️ Kısayol Tuşları & Kontroller
 
-| Kısayol / Buton | İşlev |
-| :--- | :--- |
-| **`F8`** | Not pedini göster / gizle (Global Kısayol) |
-| **`F9`** | Yüzen Mini Pad ile Tam Ekran modu arasında geçiş yap |
-| **`[↶ Geri]` / `Ctrl + Z`** | Yanlışlıkla silinen veya karalanan çizimi geri al |
-| **`Enter`** | Beklemeden çizimi anında metne dönüştür |
-| **`Esc`** | Çizim pedini gizle |
-| **`Shift + Esc`** | Uygulamayı tamamen kapat |
+| Kısayol / Buton | Çalıştığı Mod | İşlev |
+| :--- | :--- | :--- |
+| **`F8`** | Global (Her Zaman) | Not pedini göster / gizle (config.json ile özelleştirilebilir) |
+| **`F9`** | Global (Her Zaman) | Yüzen Mini Pad ile Tam Ekran modu arasında geçiş yap |
+| **`[↶]` Butonu** | Mini Pad & Tam Ekran | Yanlışlıkla silinen veya karalanan çizimi anında geri al |
+| **`[Temizle]` Butonu** | Mini Pad & Tam Ekran | Tuvali temizle (Geri alınabilir tampona kaydeder) |
+| **`Hızlı Dikey Çizgi`** | Stylus / Kalem Jesti | Deftere yeni satır / Enter ekler (Tuvalde yazı varsa önce dönüştürür) |
+| **`Karalama Jesti`** | Stylus / Kalem Jesti | Çizimi silip ekranı temizler (↶ butonuyla geri alınabilir) |
+| **`Ctrl + Z`** | Tam Ekran Modu | Son silinen çizimi geri al |
+| **`Enter`** | Tam Ekran Modu | Beklemeden çizimi anında metne dönüştür |
+| **`Esc`** | Tam Ekran Modu | Çizim pedini gizle |
+| **`Shift + Esc`** | Tam Ekran Modu | Uygulamayı tamamen kapat |
+
+> **ℹ️ Mini Pad Modunda Klavye Odağı:**  
+> Yüzen Mini Pad, siz çizim yaparken arkadaki uygulamanızın (Word, Notion, VS Code, Tarayıcı vb.) klavye odağını kaybetmemesi ve imlecinizin yerinde kalması için Windows `WS_EX_NOACTIVATE` mimarisiyle çalışır. Bu nedenle klavye basışları (`Esc`, `Enter`, `Ctrl+Z`) arkadaki aktif uygulamanıza gider. Mini Pad'de tüm aksiyonlar doğrudan stylus/kalem ile (ekran üzerindeki `[↶]`, `[Temizle]`, `[✕]` butonları ve el yazısı jestleriyle) yönetilir. Klavye kısayolları doğrudan klavye odağı alan **Tam Ekran** modunda etkindir.
 
 ---
 
@@ -88,13 +99,12 @@ copy config.example.json config.json
 ```json
 {
     "gemini_api_key": "API_ANAHTARINIZ",
-    "gemini_model": "gemini-3.5-flash",
+    "gemini_model": "gemini-3.5-flash-lite",
     "model_adaylari": [
-        "gemini-3.5-flash",
-        "gemini-flash-latest",
-        "gemini-2.5-flash"
+        "gemini-3.5-flash-lite",
+        "gemini-3-flash-preview"
     ],
-    "gemini_timeout": 5.0,
+    "gemini_timeout": 3.5,
     "ai_modu_aktif": true
 }
 ```
@@ -118,7 +128,7 @@ python app.py
 Donanımdan bağımsız birim ve mantık testlerini çalıştırmak için:
 
 ```bash
-pytest tests/test_logic.py -v
+python -m unittest tests/test_logic.py
 ```
 
 ---
@@ -129,7 +139,7 @@ pytest tests/test_logic.py -v
 pyinstaller TabletNotAlici.spec
 ```
 
-Derlenen çalıştırılabilir dosya `dist/TabletNotAlici.exe` altında oluşturulur.
+Derlenen bağımsız tek parça çalıştırılabilir dosya `dist/TabletNotAlici.exe` altında oluşturulur. Standalone modda çalıştırıldığında ayarlar ve notlar `%APPDATA%\InkScribePro` klasöründe güvenle ve kalıcı olarak saklanır.
 
 ---
 
@@ -149,7 +159,7 @@ TABLET_ELYAZİ/
 │   └── ui.py            # ArkaPlanNotDonusturucu: Çift modlu arayüz, çizim tuvali ve iş akışı
 ├── app.py               # Hafif ana giriş noktası
 ├── tests/
-│   └── test_logic.py    # Donanımdan bağımsız birim test paketi (16 test)
+│   └── test_logic.py    # Donanımdan bağımsız birim test paketi (28 test)
 ├── TabletNotAlici.spec  # PyInstaller derleme spesifikasyonu
 └── config.json          # Kullanıcı yapılandırması
 ```
