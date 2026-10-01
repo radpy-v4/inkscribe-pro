@@ -122,6 +122,29 @@ The compiled executable will be located in `dist/TabletNotAlici.exe`.
 
 ---
 
+## 🏗️ Modular Architecture
+
+The codebase is organized into clean, single-responsibility modules:
+
+```text
+TABLET_ELYAZİ/
+├── src/
+│   ├── __init__.py      # Package indicator
+│   ├── config.py        # ConfigManager, persistent settings & Windows startup registry
+│   ├── engine.py        # RecognitionEngine: Windows Ink (Offline) & Gemini Vision (Online)
+│   ├── gestures.py      # Pure Scratch-out & Vertical Stroke (Enter) algorithms
+│   ├── storage.py       # NotebookManager, multi-notebooks & text formatting
+│   ├── tray.py          # TrayManager: System tray icon & desktop notifications
+│   └── ui.py            # ArkaPlanNotDonusturucu: Dual-mode UI, drawing canvas & workflow
+├── hand_to_text.py      # Backward-compatible main entry point
+├── tests/
+│   └── test_logic.py    # Hardware-independent unit test suite
+├── TabletNotAlici.spec  # PyInstaller build specification
+└── config.json          # User configuration
+```
+
+---
+
 ## 📄 License
 
 This project is open-source and licensed under the [MIT License](LICENSE).

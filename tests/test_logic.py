@@ -7,72 +7,14 @@ import unittest
 import time
 from collections import namedtuple
 
-# foundation.Point benzeri hafif veri yapısı
+from src.gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi
+from src.engine import gemini_metin_ayristir
+from src.storage import metin_ekleme_bicimlendir
+from src.config import ConfigManager
+
+# foundation.Point benzeri hafif veri yapısı (testler için)
 Point = namedtuple("Point", ["x", "y"])
 
-
-def karalama_jesti_mi(noktalar):
-    """hand_to_text.py içindeki karalama (scratch-out) algılama algoritması."""
-    if len(noktalar) < 12:
-        return False
-    x_degerleri = [p.x for p in noktalar]
-    yon_degisimleri = 0
-    son_yon = 0
-    toplam_yol_x = 0
-    for i in range(1, len(x_degerleri)):
-        fark = x_degerleri[i] - x_degerleri[i - 1]
-        toplam_yol_x += abs(fark)
-        if abs(fark) > 8:
-            mevcut_yon = 1 if fark > 0 else -1
-            if son_yon != 0 and mevcut_yon != son_yon:
-                yon_degisimleri += 1
-            son_yon = mevcut_yon
-
-    genislik_x = max(x_degerleri) - min(x_degerleri)
-    return yon_degisimleri >= 6 and (toplam_yol_x / max(1.0, genislik_x)) > 2.5
-
-
-def dikey_cizgi_jesti_mi(noktalar, gecen_sure):
-    """hand_to_text.py içindeki hızlı dikey çizgi (Enter) algılama algoritması."""
-    if len(noktalar) < 5 or gecen_sure >= 0.35:
-        return False
-    p_ilk = noktalar[0]
-    p_son = noktalar[-1]
-    dy = p_son.y - p_ilk.y
-    dx = abs(p_son.x - p_ilk.x)
-    return dy > 130 and dx < 30 and (dy / max(1.0, dx)) > 4.0
-
-
-def gemini_metin_ayristir(candidate):
-    """Gemini API yanıtından metni güvenle ayıklama ve filtreleme algoritması."""
-    content_obj = candidate.get('content', {})
-    parts_list = content_obj.get('parts', [])
-    txt = ''.join(p.get('text', '') for p in parts_list if isinstance(p, dict)).strip()
-
-    if txt.startswith("```") and txt.endswith("```"):
-        lines = txt.split("\n")
-        txt = "\n".join(lines[1:-1]).strip() if len(lines) >= 3 else txt.replace("```", "").strip()
-
-    if txt and not txt.lower().startswith("görüntüde") and not txt.lower().startswith("bu görselde"):
-        return txt
-    return None
-
-
-def metin_ekleme_bicimlendir(metin, aktif_defter_adi, gecen_sure):
-    """Deftere kaydedilirken boşluk ve madde imi kuralları."""
-    is_todo = (aktif_defter_adi == "Yapılacaklar")
-    if is_todo and not metin.startswith(("[ ]", "[x]", "- [ ]")):
-        metin = f"[ ] {metin}"
-
-    if is_todo or metin.startswith(("-", "*", "•")):
-        return f"\n{metin}"
-    elif gecen_sure > 30:
-        return f"\n\n[12:00] {metin}"
-    else:
-        if metin.startswith((".", ",", "!", "?", ":", ";")):
-            return metin
-        else:
-            return f" {metin}"
 
 
 class TestTabletNotAliciMantik(unittest.TestCase):

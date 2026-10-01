@@ -116,6 +116,29 @@ Derlenen çalıştırılabilir dosya `dist/TabletNotAlici.exe` altında oluştur
 
 ---
 
+## 🏗️ Modüler Mimari
+
+Proje, temiz ve sürdürülebilir bir Python modül yapısına sahiptir:
+
+```text
+TABLET_ELYAZİ/
+├── src/
+│   ├── __init__.py      # Paket tanımı
+│   ├── config.py        # ConfigManager, kalıcı ayarlar ve Windows başlangıç kaydı
+│   ├── engine.py        # RecognitionEngine: Windows Ink (Offline) & Gemini Vision (Online)
+│   ├── gestures.py      # Saf Karalama (Scratch-out) ve Dikey Çizgi (Enter) algoritmaları
+│   ├── storage.py       # NotebookManager, çoklu defterler ve metin biçimlendirme
+│   ├── tray.py          # TrayManager: Sistem tepsisi menüsü ve masaüstü bildirimleri
+│   └── ui.py            # ArkaPlanNotDonusturucu: Çift modlu arayüz, çizim tuvali ve iş akışı
+├── hand_to_text.py      # Geriye dönük uyumlu ana giriş noktası
+├── tests/
+│   └── test_logic.py    # Donanımdan bağımsız birim test paketi
+├── TabletNotAlici.spec  # PyInstaller derleme spesifikasyonu
+└── config.json          # Kullanıcı yapılandırması
+```
+
+---
+
 ## 📄 Lisans
 
 Bu proje [MIT Lisansı](LICENSE) kapsamında lisanslanmıştır.
