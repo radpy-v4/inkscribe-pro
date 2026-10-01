@@ -6,12 +6,12 @@ import asyncio
 import urllib.request
 import urllib.error
 from PIL import Image
+from .config import logger
 try:
     import winrt.windows.ui.input.inking as inking
-except ImportError:
+except Exception as _e:
     inking = None
-
-from .config import logger
+    logger.warning(f"[Windows Ink] winrt import edilemedi: {_e}")
 
 
 def gemini_metin_ayristir(candidate):

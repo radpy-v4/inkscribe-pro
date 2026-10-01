@@ -55,9 +55,9 @@ if errorlevel 1 (
 echo.
 echo ========================================================
 if exist "dist\TabletNotAlici.exe" (
-    echo [✓] TEBRIKLER! Derleme basariyla tamamlandi.
-    echo [✓] Cikti: dist\TabletNotAlici.exe
-    for %%I in ("dist\TabletNotAlici.exe") do echo [✓] Dosya Boyutu: %%~zI bayt
+    echo [OK] TEBRIKLER! Derleme basariyla tamamlandi.
+    echo [OK] Cikti: dist\TabletNotAlici.exe
+    for %%I in ("dist\TabletNotAlici.exe") do echo [OK] Dosya Boyutu: %%~zI bayt
 ) else (
     echo [X] HATA: dist\TabletNotAlici.exe bulunamadi!
 )

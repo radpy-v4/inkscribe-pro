@@ -1,10 +1,13 @@
 import threading
 from PIL import Image, ImageDraw
+from .config import logger
 try:
     import pystray
-except ImportError:
+    _pystray_err = None
+except Exception as _e:
     pystray = None
-from .config import logger
+    _pystray_err = _e
+    logger.warning(f"[Tepsi] pystray import edilemedi: {_e}")
 
 
 class TrayManager:

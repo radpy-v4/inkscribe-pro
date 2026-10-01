@@ -50,6 +50,11 @@ def setup_logging(app_dir=None):
         RotatingFileHandler(log_dosyasi, maxBytes=512 * 1024, backupCount=2, encoding="utf-8")
     ]
     if sys.stdout is not None:
+        try:
+            if hasattr(sys.stdout, 'reconfigure'):
+                sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
         handlers.append(logging.StreamHandler(sys.stdout))
 
     logging.basicConfig(

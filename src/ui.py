@@ -9,20 +9,20 @@ try:
     from pynput import keyboard
 except ImportError:
     keyboard = None
+from .config import APP_DIR, DEBUG_KAYDET, logger, ConfigManager, setup_logging
+
 try:
     import winrt.windows.ui.input.inking as inking
     import winrt.windows.foundation as foundation
     Point = foundation.Point
-except ImportError:
+except Exception as _e:
     inking = None
     foundation = None
+    logger.warning(f"[Windows Ink - UI] winrt import edilemedi: {_e}")
     class Point:
         def __init__(self, x, y):
             self.x = float(x)
             self.y = float(y)
-
-
-from .config import APP_DIR, DEBUG_KAYDET, logger, ConfigManager, setup_logging
 from .gestures import karalama_jesti_mi, dikey_cizgi_jesti_mi, enter_kancasi_jesti_mi, sagdan_sola_cizgi_jesti_mi, soldan_saga_cizgi_jesti_mi
 from .filter import TitremeFiltresi
 from .storage import NotebookManager
@@ -194,6 +194,9 @@ class ArkaPlanNotDonusturucu:
         logger.info(f"      [{hk_f_str}] = Yüzen Mini Pad / Tam Ekran Değiştir")
         logger.info("      [↶ / Buton] = Silinen Çizimi Geri Al")
         logger.info("      Jestler: Karalama = Temizle, Enter (↵), Geri Al (←), Tab (→).")
+
+        # Başlangıçta kullanıcıya hazır Not Pedini (Mini Pad) göster
+        self.root.after(150, self.yazma_modunu_ac)
 
         # Başlangıç denetimleri (notes_dir fallback uyarısı ve AI gizlilik onayı)
         self.root.after(400, self._baslangic_kontrolleri)
