@@ -16,30 +16,38 @@
 
 - **⚡ Hybrid Recognition Engine:**
   - **Offline (Windows Ink):** Ultra-fast, zero-latency local handwriting recognition powered by native Windows Ink APIs. No internet connection required.
-  - **Online (Google Gemini Vision AI):** High-accuracy cloud AI recognition for cursive, complex handwriting, or shorthand. Automatically falls back to offline mode when offline.
-  - **Universal Auth & Resilient Fallback:** Supports both Google AI Studio (`AIzaSy...`) and Google Cloud (`AQ....`) keys. If network lag, rate limits, or server errors occur, it instantly and seamlessly falls back to offline Windows Ink with zero downtime.
-- **💬 Live 2-Line Note Preview:**
+  - **Online (Google Gemini Vision AI):** High-accuracy cloud AI recognition for cursive, complex handwriting, or shorthand using `gemini-2.5-flash` and `gemini-3.5-flash`.
+  - **Instant OCR & Resilient Model Fallback:** Optimized with `thinkingBudget: 0` for lightning-fast ~0.3s response times. Automatically fails over to the next candidate model if a model is deprecated (HTTP 404), or drops seamlessly to offline Windows Ink.
+- **💬 Live 2-Line Note Preview & Floating Toast Notifications:**
   - Displays the last 2 recognized notes directly on the pad's footer in real-time.
   - Automatically loads and displays the latest notes whenever you switch between notebooks.
-- **🖥️ Dual Display Modes:**
-  - **Floating Mini Pad:** Sleek dark-glass PIP (picture-in-picture) notepad that floats on top of your apps. Fully movable and resizable.
+  - Displays non-intrusive, temporary toast alerts (e.g., when undo is blocked) with distinct background shading.
+- **🖥️ Dual Display Modes with Non-Activating Focus:**
+  - **Floating Mini Pad:** Sleek dark-glass PIP (picture-in-picture) notepad that floats on top of your apps. Movable and resizable (min 680 px width). Equipped with Win32 `WS_EX_NOACTIVATE` so it never steals keyboard focus from Word, your browser, or code editor.
   - **Transparent Full-Screen Overlay:** Annotate and take notes directly over your entire screen.
+- **↶ Smart Undo Buffer:**
+  - Stylus-friendly **`[↶ Geri]`** top bar button and **`Ctrl + Z`** keyboard shortcut.
+  - Protects against accidental scratch-outs or clears without contaminating the restored canvas with scribble lines.
+  - Simultaneously reconstructs both the PIL image and native Windows Ink stroke containers.
 - **✍️ Intuitive In-Pad Gestures:**
-  - **Scratch-out:** Scribble over your drawing to instantly wipe the canvas clean.
-  - **Vertical Stroke:** A quick downward stroke creates a newline immediately.
+  - **Scratch-out:** Scribble over your drawing to instantly wipe the canvas clean (protected by oscillation density checks against cursive words).
+  - **Vertical Stroke:** A quick downward stroke creates a newline immediately (asynchronously queued if an active conversion is in progress).
 - **📚 Multi-Notebook Management:**
   - Switch seamlessly between designated notebooks (e.g. *Lecture Notes*, *To-Do List*, *Ideas*) with automatic `.txt` file persistence.
-- **🛎️ System Tray & Background Worker:**
-  - Runs quietly in the notification area. Includes Windows startup autostart integration.
+- **🛡️ Privacy-First Logging & 0% Idle CPU:**
+  - Handwritten notes are never logged as plaintext; only length and status are saved.
+  - Built-in `RotatingFileHandler` (512 KB × 2 backups) caps disk space.
+  - Zero idle CPU footprint when nothing is drawn on the canvas.
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## ⌨️ Controls & Shortcuts
 
-| Shortcut | Description |
+| Shortcut / Button | Description |
 | :--- | :--- |
 | **`F8`** | Toggle Note Pad display (Global Hotkey) |
 | **`F9`** | Switch between Floating Mini Pad and Full-Screen Mode |
+| **`[↶ Geri]` / `Ctrl + Z`** | Undo last cleared or scratched-out drawing |
 | **`Enter`** | Convert drawing to text immediately |
 | **`Esc`** | Hide drawing pad |
 | **`Shift + Esc`** | Exit application completely |
@@ -75,6 +83,7 @@ Open `config.json` and insert your [Google AI Studio](https://aistudio.google.co
 ```json
 {
     "gemini_api_key": "YOUR_GEMINI_API_KEY",
+    "gemini_model": "gemini-2.5-flash",
     "ai_modu_aktif": true
 }
 ```
@@ -87,7 +96,18 @@ Open `config.json` and insert your [Google AI Studio](https://aistudio.google.co
 ```bash
 python hand_to_text.py
 ```
+*(For headless background execution without a console window, run `pythonw hand_to_text.py`).*
+
 Press **`F8`** anywhere in Windows to bring up the notepad and start writing with your pen!
+
+---
+
+## 🧪 Running Unit Tests
+
+Run the hardware-independent logic and algorithm test suite:
+```bash
+pytest tests/test_logic.py -v
+```
 
 ---
 
@@ -102,14 +122,6 @@ The compiled executable will be located in `dist/TabletNotAlici.exe`.
 
 ---
 
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!  
-Feel free to check out the [issues page](https://github.com/YOUR_USERNAME/inkscribe-pro/issues).
-
----
-
 ## 📄 License
 
 This project is open-source and licensed under the [MIT License](LICENSE).
-# inkscribe-pro

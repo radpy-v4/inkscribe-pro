@@ -15,30 +15,38 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 
 - **🤖 Hibrit El Yazısı Tanıma:**
   - **Offline (Windows Ink):** İnternet olmadan doğrudan Windows'un yerel el yazısı motoruyla hızlı ve kesintisiz çevrim.
-  - **Online (Gemini Vision AI):** İnternet ve API anahtarı mevcutken karmaşık el yazılarını en yüksek doğrulukla çözümleme.
-  - **Evrensel Anahtar & Kesintisiz Geçiş:** Hem Google AI Studio (`AIzaSy...`) hem de Google Cloud (`AQ....`) anahtarlarını destekler. Ağ gecikmesi veya sunucu yoğunluğu (HTTP 503) olduğunda anında çevrimdışı Windows Ink motoruna düşerek asla takılmaz.
-- **💬 Canlı 2 Satır Not Önizlemesi:**
+  - **Online (Gemini Vision AI):** Güncel `gemini-2.5-flash` ve `gemini-3.5-flash` modelleriyle karmaşık el yazılarını en yüksek doğrulukla çözümleme.
+  - **Işık Hızında OCR & Akıllı Fallback:** Modelin düşünme süresi sıfırlanarak (`thinkingBudget: 0`) 0.3 saniyede yanıt alınır. Model kapanması veya 404 durumunda otomatik olarak sıradaki yedek modele geçer; internet yoksa kesintisiz yerel Windows Ink motoruna düşer.
+- **💬 Canlı 2 Satır Not Önizlemesi & Çakışmasız Toast Bildirimleri:**
   - Dönüştürülen son 2 notu pedin altındaki şık şeritte anlık olarak görüntüler.
   - Defterler arasında geçiş yapıldığında ilgili defterdeki son notları otomatik olarak yükler.
-- **🖥️ Çift Çalışma Modu:**
-  - **Yüzen Mini Pad (Floating Pad):** Ekranın köşesinde modern koyu cam temalı, boyutlandırılabilir ve taşınabilir pratik not alanı.
+  - Hatalı veya engellenen işlemlerde şık ve çakışmasız geçici uyarı kutuları (toast) gösterir.
+- **🖥️ Çift Çalışma Modu & Odak Koruma:**
+  - **Yüzen Mini Pad (Floating Pad):** Ekranın köşesinde modern koyu cam temalı, boyutlandırılabilir (min. 680 px) ve taşınabilir pratik not alanı. Windows `WS_EX_NOACTIVATE` stili sayesinde arkadaki Word, tarayıcı veya kod editörünün klavye odağını asla çalmaz.
   - **Yarı Saydam Tam Ekran (Canvas Overlay):** Tüm ekran üzerine serbestçe yazıp not alma modu.
+- **↶ Akıllı Geri Al (Undo) Mekanizması:**
+  - Kalemle tek tıkla basılabilen **`[↶ Geri]`** butonu ve **`Ctrl + Z`** kısayolu.
+  - Karalama veya dikey çizgi jestleri yapıldığında yazınız çöpe gitmez; çizgi lekesi olmadan tertemiz geri çağrılabilir.
+  - Hem Canvas görselini hem de yerel Windows Ink vuruşlarını (strokes) eşzamanlı geri yükler.
 - **✍️ Akıllı Jestler (Gestures):**
-  - **Karalama:** Yazının üzerini karaladığınızda ped otomatik olarak temizlenir.
-  - **Dikey Hızlı Çizgi:** Doğal bir el hareketiyle doğrudan yeni satır ekler.
+  - **Karalama (Scratch-out):** Yazının üzerini karaladığınızda ped temizlenir (bitişik el yazısıyla karışmaması için yoğunluk korumalıdır).
+  - **Dikey Hızlı Çizgi (Enter):** Doğal bir aşağı kaydırma hareketiyle yeni satır ekler; dönüşüm sürüyorsa satırı sıraya alıp doğru konuma ekler.
 - **📚 Çoklu Defter Yönetimi:**
   - `Ders Notları`, `Yapılacaklar`, `Fikirler` gibi farklı sekmeler arasında tek tıkla geçiş ve otomatik dosya kaydı (`.txt`).
-- **🛎️ Sistem Tepsisi (Tray Icon) ve Arka Plan:**
-  - Görev çubuğunda simge durumu, Windows açılışında otomatik başlama desteği ve sessiz arka plan çalışma modu.
+- **🛡️ Gizlilik Odaklı Loglama & %0 Boşta CPU:**
+  - Özel not metinleri log dosyasına asla düz metin yazılmaz; yalnızca karakter uzunluğu tutulur.
+  - `RotatingFileHandler` (512 KB × 2) ile log boyutu sınırlandırılır.
+  - Tuval boşken hiçbir arka plan döngüsü çalışmaz, işlemci tüketimi **%0**'dır.
 
 ---
 
-## ⌨️ Kısayol Tuşları
+## ⌨️ Kısayol Tuşları & Kontroller
 
-| Kısayol | İşlev |
+| Kısayol / Buton | İşlev |
 | :--- | :--- |
 | **`F8`** | Not pedini göster / gizle (Global Kısayol) |
 | **`F9`** | Yüzen Mini Pad ile Tam Ekran modu arasında geçiş yap |
+| **`[↶ Geri]` / `Ctrl + Z`** | Yanlışlıkla silinen veya karalanan çizimi geri al |
 | **`Enter`** | Beklemeden çizimi anında metne dönüştür |
 | **`Esc`** | Çizim pedini gizle |
 | **`Shift + Esc`** | Uygulamayı tamamen kapat |
@@ -50,6 +58,9 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 ### 1. Gereksinimler
 - **İşletim Sistemi:** Windows 10 veya Windows 11
 - **Python:** 3.10 veya üzeri
+- **Grafik Tablet veya Stylus:** VEIKK, Wacom, Huion, XP-Pen veya Windows Dokunmatik/Kalem uyumlu ekranlar.
+- *(Önerilen)* Windows Türkçe el yazısı dil paketinin kurulu olduğundan emin olun:
+  > *Ayarlar > Zaman ve Dil > Dil ve Bölge > Türkçe > Seçenekler > **El Yazısı**.*
 
 ### 2. Projeyi Klonlayın
 ```bash
@@ -66,7 +77,15 @@ pip install -r requirements.txt
 ```bash
 copy config.example.json config.json
 ```
-`config.json` dosyasını açıp Google AI Studio'dan aldığınız **Gemini API anahtarınızı** ekleyebilirsiniz.
+`config.json` dosyasını açıp [Google AI Studio](https://aistudio.google.com/)'dan aldığınız **Gemini API anahtarınızı** ekleyebilirsiniz:
+```json
+{
+    "gemini_api_key": "API_ANAHTARINIZ",
+    "gemini_model": "gemini-2.5-flash",
+    "ai_modu_aktif": true
+}
+```
+*(Dilerseniz anahtarı `GEMINI_API_KEY` ortam değişkeni olarak da tanımlayabilirsiniz. Anahtar girilmezse sistem 100% çevrimdışı Windows Ink motoruyla çalışır).*
 
 ---
 
@@ -74,6 +93,16 @@ copy config.example.json config.json
 
 ```bash
 python hand_to_text.py
+```
+*(Arka planda konsolsuz çalıştırmak için `pythonw hand_to_text.py` kullanabilirsiniz).*
+
+---
+
+## 🧪 Testleri Çalıştırma
+
+Donanımdan bağımsız birim ve mantık testlerini çalıştırmak için:
+```bash
+pytest tests/test_logic.py -v
 ```
 
 ---
@@ -83,6 +112,7 @@ python hand_to_text.py
 ```bash
 pyinstaller TabletNotAlici.spec
 ```
+Derlenen çalıştırılabilir dosya `dist/TabletNotAlici.exe` altında oluşturulur.
 
 ---
 

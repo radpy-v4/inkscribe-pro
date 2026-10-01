@@ -1,0 +1,65 @@
+name: CI & Windows Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test-and-build:
+    name: Test & Build Standalone (.exe)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run Unit Tests
+        run: |
+          pytest tests/test_logic.py -v
+
+      - name: Python Syntax & Compilation Check
+        run: |
+          python -m py_compile hand_to_text.py
+
+      - name: Build Standalone Windows Executable
+        run: |
+          pyinstaller TabletNotAlici.spec
+
+      - name: Verify Executable Exists
+        run: |
+          if (Test-Path "dist/TabletNotAlici.exe") {
+            Write-Host "Build Successful: dist/TabletNotAlici.exe exists."
+          } else {
+            Write-Error "Build Failed: dist/TabletNotAlici.exe not found."
+            exit 1
+          }
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TabletNotAlici-Windows-x64
+          path: dist/TabletNotAlici.exe
+          if-no-files-found: error
+
+      - name: Release (On Tag Push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/TabletNotAlici.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

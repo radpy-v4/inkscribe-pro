@@ -122,8 +122,8 @@ class ArkaPlanNotDonusturucu:
         self.config_dosyasi = os.path.join(APP_DIR, "config.json")
         self.env_api_key = os.environ.get("GEMINI_API_KEY", "")
         self.gemini_api_key = self.env_api_key
-        self.model_adaylari = ["gemini-2.5-flash", "gemini-3.5-flash"]
-        self.gemini_model = "gemini-2.5-flash"
+        self.model_adaylari = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash"]
+        self.gemini_model = "gemini-3.5-flash"
         self.ai_modu_aktif = True
         self.api_key_env_den_mi = bool(self.env_api_key)
         self.yapilandirmayi_yukle()
@@ -409,6 +409,11 @@ class ArkaPlanNotDonusturucu:
                         logger.warning(f"[AI Vision] '{m_adi}' modeli bulunamadı/emekli edilmiş (HTTP {http_err.code}).")
                         if m_adi == self.gemini_model:
                             model_404_aldi = True
+                        continue
+
+                    # 503 (Sunucu Aşırı Yoğunluğu) durumunda sıradaki yedek modeli dene
+                    if http_err.code == 503:
+                        logger.warning(f"[AI Vision] '{m_adi}' aşırı yoğunluk nedeniyle geçici olarak yanıt veremedi (HTTP 503). Yedek model deneniyor...")
                         continue
 
                     # ThinkingConfig hatası ise parametresiz tekrar dene
