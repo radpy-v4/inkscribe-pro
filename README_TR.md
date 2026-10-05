@@ -46,7 +46,7 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
   - Açılır menü içerisinden **`📂 Bu Defteri Aç (.txt)`** veya doğrudan **`📁 Defterler Klasörünü Aç`** butonlarıyla dosyalara erişilebilir.
 - **🛡️ Gizlilik Odaklı Loglama & %0 Boşta CPU:**
   - Özel not metinleri log dosyasına asla düz metin yazılmaz; yalnızca karakter uzunluğu tutulur.
-  - `RotatingFileHandler` (512 KB × 2) ile log boyutu sınırlandırılır.
+  - `RotatingFileHandler` (128 KB, sadece WARNING ve ERROR) ile dosya asla şişmez, gereksiz I/O tüketmez.
   - Tuval boşken hiçbir arka plan döngüsü çalışmaz, işlemci tüketimi **%0**'dır.
 
 ---

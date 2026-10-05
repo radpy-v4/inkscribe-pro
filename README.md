@@ -40,12 +40,15 @@
   - Simultaneously reconstructs both the PIL image and native Windows Ink stroke containers.
 - **✍️ Intuitive In-Pad Gestures:**
   - **Scratch-out:** Scribble over your drawing to instantly wipe the canvas clean (protected by oscillation density checks against cursive words).
-  - **Vertical Stroke:** A quick downward stroke creates a newline immediately (converts existing text first if present, then queues newline).
-- **📚 Multi-Notebook Management:**
-  - Switch seamlessly between designated notebooks (e.g. *Lecture Notes*, *To-Do List*, *Ideas*) with automatic `.txt` file persistence.
+  - **Vertical Stroke / Enter Hook (↵):** Natural downward stroke creates a newline immediately (protected by Anti-S algorithms so letters like "S" or "s" never trigger false-positive newlines).
+- **📚 Floating Card Multi-Notebook Management (`defterler/`):**
+  - All notes are organized cleanly in the dedicated **`defterler/`** subfolder (existing root files are migrated automatically).
+  - Single compact dropdown card button **`[📓 Not Defteri (...) ▾]`** on the top bar switches between `Genel`, `Ders Notları`, `Yapılacaklar`, and `Fikirler` without button clutter.
+  - Interactive popup card includes **`📂 Bu Defteri Aç (.txt)`** and **`📁 Defterler Klasörünü Aç`** to open files and folders in Windows Explorer instantly.
+  - In **Yapılacaklar (To-Do)**, sequential handwritten words append to the current item with spacing; a new task item (`[ ] `) starts only upon drawing an Enter Hook (↵) or clicking `[↵ Gönder]`.
 - **🛡️ Privacy-First Logging & 0% Idle CPU:**
-  - Handwritten notes are never logged as plaintext; only length and status are saved.
-  - Built-in `RotatingFileHandler` (512 KB × 2 backups) caps disk space.
+  - Handwritten notes are never logged as plaintext; only length and status are tracked.
+  - Built-in `RotatingFileHandler` (128 KB cap, WARNING and ERROR levels only) prevents disk bloat and eliminates unnecessary I/O.
   - Zero idle CPU footprint when nothing is drawn on the canvas.
 
 ---
@@ -57,12 +60,15 @@
 | **`F8`** | Global (Always) | Toggle Note Pad display (configurable in config.json) |
 | **`F9`** | Global (Always) | Switch between Floating Mini Pad and Full-Screen Mode |
 | **`F10`** | Global (Always) | Cycle Output Target: **Dual (Screen+TXT)** ➔ **Screen Only** ➔ **TXT Only** |
+| **`[📓 Not Defteri ▾]`** | Mini Pad & Full-Screen | Open dropdown card: switch notebook, view active `.txt`, or open `defterler/` folder |
+| **`[↵ Gönder]` Button** | Mini Pad & Full-Screen | Convert and transmit handwriting immediately without waiting (inserts newline if empty) |
+| **`[⏱️ Timeout]` Button** | Mini Pad Bottom Bar | Cycle writing timeout with one tap (1.5s ➔ 2.5s ➔ 3.5s ➔ 5.0s ➔ Manual) |
 | **`[🎯 Output]` Button** | Mini Pad Bottom Bar & Full-Screen | One-click toggle between output targets (Dual / Screen Only / TXT Only) |
 | **`[↶]` Button** | Mini Pad & Full-Screen | Undo last cleared or scratched-out drawing |
 | **`[Temizle]` Button** | Mini Pad & Full-Screen | Clear canvas (saved to undo buffer) |
 | **`[Tab ⇥]` Button** | Mini Pad & Full-Screen | Send immediate Tab key to active target window (jump to next form field / cell) |
-| **`Enter Hook (↵)`** | Stylus / Pen Gesture | Draw a downward stroke turning left (↵) or vertical flick to send Enter to target app & notebook |
-| **`Strike-left (←)`** | Stylus / Pen Gesture | Quick right-to-left stroke to undo last drawn stroke, restore cleared canvas, or send `Ctrl+Z` |
+| **`Enter Hook (↵)`** | Stylus / Pen Gesture | Draw a downward stroke turning left (↵) or vertical flick to start a new line / to-do item (Anti-S protected) |
+| **`Strike-left (←)`** | Stylus / Pen Gesture | Quick right-to-left stroke to undo last drawn stroke or restore cleared canvas |
 | **`Flick-right (→)`** | Stylus / Pen Gesture | Quick left-to-right stroke to send Tab key to active app (pastes written text first if present) |
 | **`Scratch-out`** | Stylus / Pen Gesture | Erase stroke and clear pad (recoverable via ↶ button) |
 | **`Ctrl + Z`** | Full-Screen Mode | Undo last cleared drawing |

@@ -46,20 +46,30 @@ def setup_logging(app_dir=None):
     """Loglama ve pythonw excepthook yapılandırmasını yalnızca uygulama başlatılırken kurar."""
     target_dir = app_dir or APP_DIR
     log_dosyasi = os.path.join(target_dir, "not_alici.log")
-    handlers = [
-        RotatingFileHandler(log_dosyasi, maxBytes=512 * 1024, backupCount=2, encoding="utf-8")
-    ]
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+
+    # 1. Dosya Loglayıcısı: Yalnızca WARNING ve ERROR seviyelerini kaydeder, üst sınır 128 KB
+    file_handler = RotatingFileHandler(
+        log_dosyasi, maxBytes=128 * 1024, backupCount=1, encoding="utf-8"
+    )
+    file_handler.setLevel(logging.WARNING)
+    file_handler.setFormatter(formatter)
+    handlers = [file_handler]
+
+    # 2. Konsol Loglayıcısı: Konsol açıksa geliştirici akışını görmek için INFO düzeyinde yazar
     if sys.stdout is not None:
         try:
             if hasattr(sys.stdout, 'reconfigure'):
                 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
-        handlers.append(logging.StreamHandler(sys.stdout))
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(formatter)
+        handlers.append(stream_handler)
 
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=handlers,
         force=True
     )

@@ -606,16 +606,16 @@ class ArkaPlanNotDonusturucu:
         self.canvas.create_rectangle(0, 0, w, 42, fill="#1e293b", outline="", tags="ui_buton")
         self.canvas.create_text(
             14, 21,
-            text="✍️ INKSCRIBE",
+            text="✍️ INKSCRIBE PRO",
             fill="#38bdf8", anchor="w", font=("Segoe UI", 9, "bold"), tags="ui_buton"
         )
 
-        # Aktif Defter Açılır Menü Butonu (Dropdown)
-        btn_defter_x = 118
+        # Aktif Defter Açılır Menü Butonu (Dropdown - Başlıktan ferah mesafede başlar)
+        btn_defter_x = 175
         btn_defter_w = max(195, len(btn_defter_txt) * 7 + 22)
-        # Sıkışma önleyici güvenlik sınırı
-        if btn_defter_x + btn_defter_w > w - 370:
-            btn_defter_w = max(140, w - 370 - btn_defter_x)
+        # Sıkışma önleyici güvenlik sınırı (sağ butonlara çarpmaması için)
+        if btn_defter_x + btn_defter_w > w - 375:
+            btn_defter_w = max(130, w - 375 - btn_defter_x)
         self._buton_ciz(btn_defter_x, 8, btn_defter_w, 26, btn_defter_txt, "#38bdf8", "toggle_defter_menu", bg_renk="#0f2b48", font_size=8)
 
         # Sağ Üst Aksiyon Butonları (Ferah, Dokunmatik Dostu Geniş Aralıklar)
@@ -850,7 +850,7 @@ class ArkaPlanNotDonusturucu:
         if getattr(self, 'defter_menu_acik', False):
             self.defter_menu_acik = False
             self.butonlari_ciz()
-            if event.y <= 265 and event.x <= 365:
+            if event.y <= 270 and 170 <= event.x <= 415:
                 return
 
         w, h = self.mevcut_boyut()
