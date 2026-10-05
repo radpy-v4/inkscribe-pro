@@ -93,7 +93,7 @@ class ArkaPlanNotDonusturucu:
 
         # Zamanlayıcı ve durum bayrakları
         self.son_yazma_zamani = time.time()
-        self.bekleme_suresi = 0.65
+        self.bekleme_suresi = float(getattr(self.config, 'bekleme_suresi', 3.5))
         self.kalem_basili = False
         self.isleniyor = False
         self.yazma_modu_aktif = False
@@ -102,6 +102,7 @@ class ArkaPlanNotDonusturucu:
         self.bekleyen_yeni_satir = 0
         self.bekleyen_tab = 0
         self.debounce_timer_id = None
+        self.defter_menu_acik = False
 
         # Odak takibi ve Toast
         self.son_hedef_hwnd = None
@@ -115,6 +116,7 @@ class ArkaPlanNotDonusturucu:
         # Yetenekler
         self.otomatik_yapistir = True
         self.otomatik_enter = False
+        self.cikis_hedefi = getattr(self.config, 'cikis_hedefi', 'cift')
 
         # Canvas ve görsel katman
         w, h = self.mevcut_boyut()
@@ -157,26 +159,31 @@ class ArkaPlanNotDonusturucu:
         if keyboard is not None:
             hk_toggle = getattr(self.config, 'hotkey_toggle', '<f8>') or '<f8>'
             hk_full = getattr(self.config, 'hotkey_fullscreen', '<f9>') or '<f9>'
+            hk_out = getattr(self.config, 'hotkey_output_mode', '<f10>') or '<f10>'
             if hk_toggle.strip().lower() == hk_full.strip().lower():
                 logger.warning(f"[Hotkey Uyarısı] hotkey_toggle ve hotkey_fullscreen aynı olamaz ('{hk_toggle}'). Varsayılanlara dönülüyor.")
                 hk_toggle = '<f8>'
                 hk_full = '<f9>'
 
-            def _kur_dinleyici(t_key, f_key):
-                return keyboard.GlobalHotKeys({
+            def _kur_dinleyici(t_key, f_key, o_key):
+                d = {
                     t_key: _toggle_tetiklendi,
                     f_key: lambda: self.root.after(0, self.toggle_tam_ekran)
-                })
+                }
+                if o_key and o_key.strip().lower() not in (t_key.strip().lower(), f_key.strip().lower()):
+                    d[o_key] = lambda: self.root.after(0, self.cikis_hedefi_degistir)
+                return keyboard.GlobalHotKeys(d)
 
             try:
-                self.hotkey_listener = _kur_dinleyici(hk_toggle, hk_full)
+                self.hotkey_listener = _kur_dinleyici(hk_toggle, hk_full, hk_out)
                 self.hotkey_listener.start()
             except Exception as e:
-                logger.warning(f"[Hotkey Hatası] '{hk_toggle}' veya '{hk_full}' geçersiz ({e}). Varsayılan '<f8>' ve '<f9>' deneniyor...")
+                logger.warning(f"[Hotkey Hatası] '{hk_toggle}', '{hk_full}' veya '{hk_out}' geçersiz ({e}). Varsayılan '<f8>', '<f9>', '<f10>' deneniyor...")
                 hk_toggle = '<f8>'
                 hk_full = '<f9>'
+                hk_out = '<f10>'
                 try:
-                    self.hotkey_listener = _kur_dinleyici(hk_toggle, hk_full)
+                    self.hotkey_listener = _kur_dinleyici(hk_toggle, hk_full, hk_out)
                     self.hotkey_listener.start()
                 except Exception as ex:
                     logger.error(f"[Hotkey Kritik Hata] Global kısayol dinleyicisi başlatılamadı: {ex}")
@@ -189,9 +196,11 @@ class ArkaPlanNotDonusturucu:
 
         hk_t_str = getattr(self.config, 'hotkey_toggle', '<f8>').upper().strip('<>')
         hk_f_str = getattr(self.config, 'hotkey_fullscreen', '<f9>').upper().strip('<>')
+        hk_o_str = getattr(self.config, 'hotkey_output_mode', '<f10>').upper().strip('<>')
         logger.info("[3/3] Dinleyici aktif!")
         logger.info(f"      [{hk_t_str}] = Not Pedini Göster/Gizle")
         logger.info(f"      [{hk_f_str}] = Yüzen Mini Pad / Tam Ekran Değiştir")
+        logger.info(f"      [{hk_o_str}] = Çıkış Modu Değiştir (Çift / Ekran / TXT)")
         logger.info("      [↶ / Buton] = Silinen Çizimi Geri Al")
         logger.info("      Jestler: Karalama = Temizle, Enter (↵), Geri Al (←), Tab (→).")
 
@@ -400,6 +409,68 @@ class ArkaPlanNotDonusturucu:
         durum = "Açık (Dikkat: Mesaj/Form/Komut gönderebilir)" if self.otomatik_enter else "Kapalı (Güvenli - Yalnızca Deftere)"
         logger.info(f">> [Auto-Enter] Otomatik Enter Tuşu: {durum}")
 
+    def cikis_hedefi_degistir(self, yeni_hedef=None):
+        sirali_modlar = ["cift", "ekran", "txt"]
+        if yeni_hedef in sirali_modlar:
+            self.cikis_hedefi = yeni_hedef
+        else:
+            idx = sirali_modlar.index(self.cikis_hedefi) if self.cikis_hedefi in sirali_modlar else 0
+            self.cikis_hedefi = sirali_modlar[(idx + 1) % len(sirali_modlar)]
+
+        self.config.cikis_hedefi = self.cikis_hedefi
+        self.config.kaydet()
+
+        mesajlar = {
+            "cift": "🎯 Çıkış Modu: Hem Ekran Hem TXT (Çift)",
+            "ekran": "🖥️ Çıkış Modu: Sadece Ekran (İmlece Yaz)",
+            "txt": "📝 Çıkış Modu: Sadece TXT (Sessiz Defter)"
+        }
+        msg = mesajlar.get(self.cikis_hedefi, "Çıkış Modu Değiştirildi")
+        self.alt_cubuk_gecici_mesaj(msg, sure=2.2)
+        logger.info(f">> [Çıkış Modu] {msg}")
+
+        if self.yazma_modu_aktif:
+            self.butonlari_ciz()
+
+    def bekleme_suresi_ayarla(self, yeni_sure):
+        try:
+            val = float(yeni_sure)
+            if val <= 0.05:
+                self.bekleme_suresi = 0.0
+            else:
+                self.bekleme_suresi = max(0.4, min(val, 5.0))
+            self.config.bekleme_suresi = self.bekleme_suresi
+            self.config.kaydet()
+            self.butonlari_ciz()
+            if self.bekleme_suresi <= 0.0:
+                self.alt_cubuk_gecici_mesaj("⏱️ Manuel Gönderim: Otomatik aktarım kapalı, [↵ Gönder] ile aktarılır.", sure=3.0)
+                logger.info(">> [Bekleme Süresi] Manuel moda alındı.")
+            else:
+                self.alt_cubuk_gecici_mesaj(f"⏱️ Yazma bekleme süresi: {self.bekleme_suresi:.1f} sn", sure=2.5)
+                logger.info(f">> [Bekleme Süresi] {self.bekleme_suresi:.1f} saniye olarak güncellendi.")
+        except Exception as e:
+            logger.error(f"Bekleme süresi ayar hatası: {e}")
+
+    def dongu_bekleme_suresi(self):
+        """Alt çubuktaki butona basıldığında bekleme süresini döngüsel değiştirir."""
+        kademeler = [1.5, 2.5, 3.5, 5.0, 0.0]
+        mevcut = self.bekleme_suresi
+        yeni = 3.5
+        for i, k in enumerate(kademeler):
+            if abs(mevcut - k) < 0.2:
+                yeni = kademeler[(i + 1) % len(kademeler)]
+                break
+        self.bekleme_suresi_ayarla(yeni)
+
+    def toggle_navigasyon_jestleri(self):
+        """Enter, Tab ve Geri Al gezinme jestlerini açar / kapatır."""
+        suanki = getattr(self.config, 'navigasyon_jestleri_aktif', False)
+        self.config.navigasyon_jestleri_aktif = not suanki
+        self.config.kaydet()
+        durum = "Açık (Enter ↵ / Tab ⇥)" if self.config.navigasyon_jestleri_aktif else "Kapalı (Güvenli Mod - 'S' vb. harfler korunur)"
+        self.alt_cubuk_gecici_mesaj(f"✍️ Gezinme Jestleri: {durum}", sure=3.0)
+        logger.info(f">> [Jest Ayarı] Navigasyon jestleri {durum} yapıldı.")
+
     def programi_kapat(self):
         logger.info("InkScribe Pro kapatılıyor...")
         if self.tray:
@@ -497,59 +568,187 @@ class ArkaPlanNotDonusturucu:
         self.canvas.delete("ui_buton")
         w, h = self.mevcut_boyut()
 
+        ad, _ = self.storage.defterler[self.storage.aktif_defter_index]
+        defter_ikonlar = {
+            "Genel": "📝",
+            "Ders Notları": "📘",
+            "Yapılacaklar": "✅",
+            "Fikirler": "💡"
+        }
+        ikon = defter_ikonlar.get(ad, "📁")
+        btn_defter_txt = f"{ikon} Not Defteri ({ad}) ▾"
+
         if self.tam_ekran_mi:
+            btn_defter_w = max(200, len(btn_defter_txt) * 7 + 26)
+            self._buton_ciz(25, 15, btn_defter_w, 32, btn_defter_txt, "#38bdf8", "toggle_defter_menu", bg_renk="#0f2b48", font_size=8)
             self._buton_ciz(w - 55, 15, 40, 32, "✕", "#ef4444", "kapat", bg_renk="#7f1d1d")
             self._buton_ciz(w - 105, 15, 42, 32, "⛶", "#94a3b8", "mod_degistir", bg_renk="#334155")
             self._buton_ciz(w - 155, 15, 42, 32, "↶", "#38bdf8", "geri_al", bg_renk="#0369a1")
             self._buton_ciz(w - 215, 15, 52, 32, "Temizle", "#f59e0b", "temizle", bg_renk="#78350f")
-            self._buton_ciz(w - 275, 15, 54, 32, "Tab ⇥", "#a78bfa", "tab_bas", bg_renk="#4c1d95")
+            self._buton_ciz(w - 295, 15, 72, 32, "↵ Gönder", "#34d399", "aninda_donustur", bg_renk="#064e3b")
+            self._buton_ciz(w - 355, 15, 54, 32, "Tab ⇥", "#a78bfa", "tab_bas", bg_renk="#4c1d95")
+
+            # Tam ekran çıkış modu butonu
+            hedef = getattr(self, 'cikis_hedefi', 'cift')
+            if hedef == "ekran":
+                h_txt, h_renk, h_bg = "🖥️ Sadece Ekran", "#34d399", "#065f46"
+            elif hedef == "txt":
+                h_txt, h_renk, h_bg = "📝 Sadece TXT", "#fbbf24", "#78350f"
+            else:
+                h_txt, h_renk, h_bg = "🎯 Çift Mod", "#38bdf8", "#0369a1"
+            self._buton_ciz(w - 505, 15, 140, 32, h_txt, h_renk, "toggle_cikis_hedefi", bg_renk=h_bg, font_size=8)
+
+            if getattr(self, 'defter_menu_acik', False):
+                self._defter_popup_ciz(25, 52, btn_defter_w)
             return
 
         # Yüzen Mini Pad Üst Başlık Çubuğu
         self.canvas.create_rectangle(0, 0, w, 42, fill="#1e293b", outline="", tags="ui_buton")
         self.canvas.create_text(
             14, 21,
-            text="✍️ INKSCRIBE PRO",
-            fill="#38bdf8", anchor="w", font=("Segoe UI", 10, "bold"), tags="ui_buton"
+            text="✍️ INKSCRIBE",
+            fill="#38bdf8", anchor="w", font=("Segoe UI", 9, "bold"), tags="ui_buton"
         )
 
-        bx = 160
-        for i, (ad, _) in enumerate(self.storage.defterler):
-            aktif = (i == self.storage.aktif_defter_index)
-            kutu_bg = "#0284c7" if aktif else "#334155"
-            yazi_renk = "#ffffff" if aktif else "#94a3b8"
-            bw = len(ad) * 8 + 16
-            self._buton_ciz(bx, 8, bw, 26, ad, yazi_renk, f"defter_{i}", bg_renk=kutu_bg, font_size=8)
-            bx += bw + 6
+        # Aktif Defter Açılır Menü Butonu (Dropdown)
+        btn_defter_x = 118
+        btn_defter_w = max(195, len(btn_defter_txt) * 7 + 22)
+        # Sıkışma önleyici güvenlik sınırı
+        if btn_defter_x + btn_defter_w > w - 370:
+            btn_defter_w = max(140, w - 370 - btn_defter_x)
+        self._buton_ciz(btn_defter_x, 8, btn_defter_w, 26, btn_defter_txt, "#38bdf8", "toggle_defter_menu", bg_renk="#0f2b48", font_size=8)
 
-        # Sağ Üst Aksiyon Butonları
+        # Sağ Üst Aksiyon Butonları (Ferah, Dokunmatik Dostu Geniş Aralıklar)
         ai_icon = "⚡ AI: Açık" if self.config.ai_modu_aktif else "💻 AI: Kapalı"
         ai_bg = "#065f46" if self.config.ai_modu_aktif else "#374151"
         ai_renk = "#34d399" if self.config.ai_modu_aktif else "#9ca3af"
-        self._buton_ciz(w - 335, 8, 50, 26, "Tab ⇥", "#a78bfa", "tab_bas", bg_renk="#4c1d95", font_size=8)
-        self._buton_ciz(w - 280, 8, 75, 26, ai_icon, ai_renk, "toggle_ai", bg_renk=ai_bg, font_size=8)
 
-        self._buton_ciz(w - 195, 8, 32, 26, "↶", "#38bdf8", "geri_al", bg_renk="#0369a1", font_size=10)
-        self._buton_ciz(w - 155, 8, 55, 26, "Temizle", "#f59e0b", "temizle", bg_renk="#78350f", font_size=8)
-        self._buton_ciz(w - 92, 8, 36, 26, "⛶", "#94a3b8", "mod_degistir", bg_renk="#334155", font_size=10)
-        self._buton_ciz(w - 48, 8, 36, 26, "✕", "#ef4444", "kapat", bg_renk="#7f1d1d", font_size=10)
+        self._buton_ciz(w - 42, 8, 32, 26, "✕", "#ef4444", "kapat", bg_renk="#7f1d1d", font_size=10)
+        self._buton_ciz(w - 78, 8, 32, 26, "⛶", "#94a3b8", "mod_degistir", bg_renk="#334155", font_size=10)
+        self._buton_ciz(w - 134, 8, 52, 26, "Temizle", "#f59e0b", "temizle", bg_renk="#78350f", font_size=8)
+        self._buton_ciz(w - 168, 8, 30, 26, "↶", "#38bdf8", "geri_al", bg_renk="#0369a1", font_size=10)
+        self._buton_ciz(w - 240, 8, 68, 26, "↵ Gönder", "#34d399", "aninda_donustur", bg_renk="#064e3b", font_size=8)
+        self._buton_ciz(w - 316, 8, 72, 26, ai_icon, ai_renk, "toggle_ai", bg_renk=ai_bg, font_size=8)
+        self._buton_ciz(w - 366, 8, 46, 26, "Tab ⇥", "#a78bfa", "tab_bas", bg_renk="#4c1d95", font_size=8)
 
         # Alt Bilgi Çubuğu
         fy1 = h - 44
         self.canvas.create_rectangle(0, fy1, w, h, fill="#0b1120", outline="#1e293b", width=1, tags="ui_buton")
 
+        # Çıkış Modu Butonu (Alt Bar - Sağ Taraf)
+        hedef = getattr(self, 'cikis_hedefi', 'cift')
+        if hedef == "ekran":
+            h_txt, h_renk, h_bg = "🖥️ Çıkış: Sadece Ekran", "#34d399", "#065f46"
+        elif hedef == "txt":
+            h_txt, h_renk, h_bg = "📝 Çıkış: Sadece TXT", "#fbbf24", "#78350f"
+        else:
+            h_txt, h_renk, h_bg = "🎯 Çıkış: Çift (Ekran+TXT)", "#38bdf8", "#0369a1"
+
+        btn_cikis_w = 175
+        self._buton_ciz(w - btn_cikis_w - 16, fy1 + 8, btn_cikis_w, 28, h_txt, h_renk, "toggle_cikis_hedefi", bg_renk=h_bg, font_size=8)
+
+        # Bekleme Süresi Butonu (Alt Bar - Çıkış Modunun Solu)
+        sure_txt = "⏱️ Manuel" if self.bekleme_suresi <= 0.05 else f"⏱️ {self.bekleme_suresi:.1f} sn"
+        btn_sure_w = 95
+        self._buton_ciz(w - btn_cikis_w - 16 - btn_sure_w - 8, fy1 + 8, btn_sure_w, 28, sure_txt, "#38bdf8", "dongu_bekleme_suresi", bg_renk="#0f2b48", font_size=8)
+
         sonlar = self.storage.son_satirlari_oku(2)
-        onizleme_metni = "  |  ".join(sonlar) if sonlar else "Henüz bu deftere not alınmadı."
+        if hedef == "ekran":
+            onizleme_metni = "Defter kaydı duraklatıldı (Yalnızca ekrana yazılıyor)"
+        else:
+            onizleme_metni = "  |  ".join(sonlar) if sonlar else "Henüz bu deftere not alınmadı."
+
+        # Sol altta metin ile butonların çakışmasını engellemek için sınırla
+        max_chars = max(20, int((w - btn_cikis_w - btn_sure_w - 50) / 7.5))
+        if len(onizleme_metni) > max_chars:
+            onizleme_metni = onizleme_metni[:max_chars - 3] + "..."
+
         self.canvas.create_text(
             14, fy1 + 22,
             text=f"Son: {onizleme_metni}",
-            fill="#64748b", anchor="w", font=("Segoe UI", 9), tags="ui_buton"
+            fill="#64748b" if hedef != "ekran" else "#34d399", anchor="w", font=("Segoe UI", 9), tags="ui_buton"
         )
 
         # Yeniden Boyutlandırma Tutamacı (Sağ Alt Köşe)
         self.canvas.create_line(w - 6, h - 16, w - 16, h - 6, fill="#64748b", width=2, tags="ui_buton")
         self.canvas.create_line(w - 6, h - 11, w - 11, h - 6, fill="#64748b", width=2, tags="ui_buton")
         self.canvas.create_line(w - 6, h - 6, w - 6, h - 6, fill="#64748b", width=2, tags="ui_buton")
+
+        # Defter Açılır Menüsü Açıksa En Üst Katmana Çiz
+        if getattr(self, 'defter_menu_acik', False):
+            self._defter_popup_ciz(btn_defter_x, 38, btn_defter_w)
+
+    def _defter_popup_ciz(self, px, py, menu_genislik=None):
+        """Aktif defteri değiştirmek ve defterler klasörünü yönetmek için şık açılır kart çizer."""
+        pw = max(225, menu_genislik or 225)
+        defterler = self.storage.defterler
+        n = len(defterler)
+        row_h = 28
+        header_h = 24
+        actions_h = 2 * 27 + 10
+        total_h = header_h + n * row_h + actions_h + 10
+        px2 = px + pw
+        py2 = py + total_h
+
+        # Gölge Efekti
+        self.canvas.create_rectangle(
+            px + 3, py + 3, px2 + 3, py2 + 3,
+            fill="#020617", outline="", tags="ui_buton"
+        )
+        # Menü Arka Plan Kartı
+        self.canvas.create_rectangle(
+            px, py, px2, py2,
+            fill="#0f172a", outline="#0284c7", width=2, tags="ui_buton"
+        )
+        # Kart Başlığı
+        self.canvas.create_text(
+            px + 12, py + 13,
+            text="📓 NOT DEFTERLERİ (DEFTERLER/)", fill="#94a3b8", anchor="w",
+            font=("Segoe UI", 7, "bold"), tags="ui_buton"
+        )
+
+        defter_ikonlar = {
+            "Genel": "📝",
+            "Ders Notları": "📘",
+            "Yapılacaklar": "✅",
+            "Fikirler": "💡"
+        }
+
+        # Defter Seçenekleri
+        cur_y = py + header_h + 2
+        for i, (ad, _) in enumerate(defterler):
+            aktif = (i == self.storage.aktif_defter_index)
+            kutu_bg = "#0284c7" if aktif else "#1e293b"
+            yazi_renk = "#ffffff" if aktif else "#cbd5e1"
+            ikon = defter_ikonlar.get(ad, "📁")
+            isaret = "  ✓" if aktif else ""
+            etiket = f"{ikon} Not Defteri ({ad}){isaret}"
+
+            self._buton_ciz(
+                px + 6, cur_y, pw - 12, 24,
+                etiket, yazi_renk, f"defter_{i}",
+                bg_renk=kutu_bg, font_size=8
+            )
+            cur_y += row_h
+
+        # Ayraç Çizgisi
+        self.canvas.create_line(px + 6, cur_y + 3, px2 - 6, cur_y + 3, fill="#334155", width=1, tags="ui_buton")
+        cur_y += 7
+
+        # 1. Buton: Seçili Dosyayı Aç
+        self._buton_ciz(
+            px + 6, cur_y, pw - 12, 24,
+            "📂 Bu Defteri Aç (.txt)", "#38bdf8", "dosya_ac",
+            bg_renk="#1e293b", font_size=8
+        )
+        cur_y += 27
+
+        # 2. Buton: Defterler Klasörünü Aç
+        self._buton_ciz(
+            px + 6, cur_y, pw - 12, 24,
+            "📁 Defterler Klasörünü Aç", "#34d399", "klasor_ac",
+            bg_renk="#064e3b", font_size=8
+        )
 
     def _buton_ciz(self, x, y, genislik, yukseklik, metin, renk, komut, bg_renk="#1e293b", font_size=9):
         tag = f"btn_{komut}"
@@ -572,12 +771,41 @@ class ArkaPlanNotDonusturucu:
             for tag in tags:
                 if tag.startswith("btn_"):
                     komut = tag.replace("btn_", "")
+                    if komut == "toggle_defter_menu":
+                        self.defter_menu_acik = not getattr(self, 'defter_menu_acik', False)
+                        self.butonlari_ciz()
+                        return True
+                    elif komut.startswith("defter_"):
+                        idx = int(komut.split("_")[1])
+                        self.defter_sec(idx)
+                        self.defter_menu_acik = False
+                        self.butonlari_ciz()
+                        return True
+                    elif komut == "dosya_ac":
+                        self.storage.notlar_dosyasini_ac()
+                        self.defter_menu_acik = False
+                        self.butonlari_ciz()
+                        return True
+                    elif komut == "klasor_ac":
+                        self.storage.defterler_klasorunu_ac()
+                        self.defter_menu_acik = False
+                        self.butonlari_ciz()
+                        return True
+                    else:
+                        if getattr(self, 'defter_menu_acik', False):
+                            self.defter_menu_acik = False
+                            self.butonlari_ciz()
+
                     if komut == "kapat":
                         self.yazma_modunu_kapat()
                     elif komut == "temizle":
                         self.ekrani_temizle(yedekle=True)
                     elif komut == "geri_al":
                         self.geri_al()
+                    elif komut == "aninda_donustur":
+                        self.aninda_donustur()
+                    elif komut == "dongu_bekleme_suresi":
+                        self.dongu_bekleme_suresi()
                     elif komut == "tab_bas":
                         threading.Thread(target=self._arka_planda_tab_bas, args=(1,), daemon=True).start()
                         self.alt_cubuk_gecici_mesaj("⇥ Tab tuşu basıldı.")
@@ -585,9 +813,8 @@ class ArkaPlanNotDonusturucu:
                         self.toggle_tam_ekran()
                     elif komut == "toggle_ai":
                         self.toggle_ai_modu()
-                    elif komut.startswith("defter_"):
-                        idx = int(komut.split("_")[1])
-                        self.defter_sec(idx)
+                    elif komut == "toggle_cikis_hedefi":
+                        self.cikis_hedefi_degistir()
                     return True
         return False
 
@@ -619,6 +846,12 @@ class ArkaPlanNotDonusturucu:
     def fare_basildi(self, event):
         if self.buton_tiklandi_mi(event.x, event.y):
             return
+
+        if getattr(self, 'defter_menu_acik', False):
+            self.defter_menu_acik = False
+            self.butonlari_ciz()
+            if event.y <= 265 and event.x <= 365:
+                return
 
         w, h = self.mevcut_boyut()
 
@@ -725,9 +958,25 @@ class ArkaPlanNotDonusturucu:
         self.son_yazma_zamani = time.time()
 
     def jestleri_kontrol_et(self):
+        # 1. Karalama ile Silme Jesti (Scratch-out - Her zaman güvenli jest)
+        if getattr(self.config, 'karalama_silme_aktif', True) and karalama_jesti_mi(self.aktif_noktalar):
+            logger.info(">> [JEST] Karalama: Ekran temizlendi! (Geri almak için ↶ butonu)")
+            self.canvas.delete("stroke_current")
+            self.aktif_noktalar = []
+            if self.tum_stroke_noktalari:
+                self.son_silinen_resim = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
+                self.son_silinen_stroke_noktalari = [list(pts) for pts in self.tum_stroke_noktalari]
+            self.ekrani_temizle(yedekle=False)
+            return True
+
+        # Gezinme jestleri (Enter ↵, Tab ⇥, Geri Al ←) el yazısı harfleriyle ('S', 'l', '1', '-')
+        # karışmaması için varsayılan olarak kapalıdır; yalnızca kullanıcı açtığında çalışır.
+        if not getattr(self.config, 'navigasyon_jestleri_aktif', False):
+            return False
+
         gecen_sure = time.time() - self.stroke_baslangic_zamani
 
-        # 1. Enter / Yeni Satır Jesti (Öncelikli: Enter Kancası ↵, Yedek: Dikey Fiske)
+        # 2. Enter / Yeni Satır Jesti (Öncelikli: Enter Kancası ↵, Yedek: Dikey Fiske)
         scale = getattr(self, 'dpi_scale', 1.0)
         dy_min = int(70 * scale)
         dx_max = int(45 * scale)
@@ -769,9 +1018,13 @@ class ArkaPlanNotDonusturucu:
                 self.bekleyen_yeni_satir += 1
                 adet = self.bekleyen_yeni_satir
                 self.bekleyen_yeni_satir = 0
-                for _ in range(adet):
-                    self.storage.yeni_satir_ekle()
-                threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
+                yaz_ekrana = getattr(self, 'cikis_hedefi', 'cift') in ("cift", "ekran")
+                kaydet_txt = getattr(self, 'cikis_hedefi', 'cift') in ("cift", "txt")
+                if kaydet_txt:
+                    for _ in range(adet):
+                        self.storage.yeni_satir_ekle()
+                if yaz_ekrana:
+                    threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
                 self.ekrani_temizle(yedekle=False)
 
             return True
@@ -864,17 +1117,6 @@ class ArkaPlanNotDonusturucu:
 
             return True
 
-        # 4. Karalama ile Silme Jesti (Scratch-out)
-        if karalama_jesti_mi(self.aktif_noktalar):
-            logger.info(">> [JEST] Karalama: Ekran temizlendi! (Geri almak için ↶ butonu)")
-            self.canvas.delete("stroke_current")
-            self.aktif_noktalar = []
-            if self.tum_stroke_noktalari:
-                self.son_silinen_resim = self.stroke_noktalarindan_resim_uret(self.tum_stroke_noktalari)
-                self.son_silinen_stroke_noktalari = [list(pts) for pts in self.tum_stroke_noktalari]
-            self.ekrani_temizle(yedekle=False)
-            return True
-
         return False
 
     def fare_birakildi(self, event):
@@ -943,6 +1185,9 @@ class ArkaPlanNotDonusturucu:
             self.debounce_timer_id = None
 
         if self.cizim_yapildi and not self.isleniyor:
+            if self.bekleme_suresi <= 0.05:
+                # Manuel mod: otomatik dönüştürme zamanlayıcısı kurulmaz, [↵ Gönder] beklenir
+                return
             gecen = time.time() - getattr(self, 'son_yazma_zamani', time.time())
             kalan_ms = int(max(0.06, self.bekleme_suresi - gecen) * 1000)
             self.debounce_timer_id = self.root.after(
@@ -956,7 +1201,16 @@ class ArkaPlanNotDonusturucu:
 
     def aninda_donustur(self):
         if not self.isleniyor:
-            self.tetikle_donusturme()
+            if not self.cizim_yapildi:
+                yaz_ekrana = getattr(self, 'cikis_hedefi', 'cift') in ("cift", "ekran")
+                kaydet_txt = getattr(self, 'cikis_hedefi', 'cift') in ("cift", "txt")
+                if kaydet_txt:
+                    self.storage.yeni_satir_ekle()
+                if yaz_ekrana:
+                    threading.Thread(target=self._arka_planda_enter_bas, args=(1,), daemon=True).start()
+                self.alt_cubuk_gecici_mesaj("↵ Yeni satıra geçildi.", sure=1.5)
+            else:
+                self.tetikle_donusturme()
 
     def tetikle_donusturme(self):
         if self.debounce_timer_id:
@@ -1029,40 +1283,51 @@ class ArkaPlanNotDonusturucu:
     def _donusturme_tamamlandi_bos(self):
         """Metin algılanamadığında veya hata durumunda ana UI thread'inde güvenle çalışır."""
         self.isleniyor = False
+        yaz_ekrana = getattr(self, 'cikis_hedefi', 'cift') in ("cift", "ekran")
+        kaydet_txt = getattr(self, 'cikis_hedefi', 'cift') in ("cift", "txt")
+
         if self.bekleyen_yeni_satir > 0:
             adet = self.bekleyen_yeni_satir
             self.bekleyen_yeni_satir = 0
-            for _ in range(adet):
-                self.storage.yeni_satir_ekle()
-            threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
+            if kaydet_txt:
+                for _ in range(adet):
+                    self.storage.yeni_satir_ekle()
+            if yaz_ekrana:
+                threading.Thread(target=self._arka_planda_enter_bas, args=(adet,), daemon=True).start()
         if self.bekleyen_tab > 0:
             adet = self.bekleyen_tab
             self.bekleyen_tab = 0
-            threading.Thread(target=self._arka_planda_tab_bas, args=(adet,), daemon=True).start()
+            if yaz_ekrana:
+                threading.Thread(target=self._arka_planda_tab_bas, args=(adet,), daemon=True).start()
         self._debounce_kur()
 
     def panoya_ve_dosyaya_aktar(self, metin):
         try:
-            # Aktif uygulamaya yapıştırırken kelimelerin birbirine yapışmasını önlemek için sonuna boşluk ekle
-            yapistirilacak = metin if metin.endswith((" ", "\n", "\t")) else (metin + " ")
+            yaz_ekrana = getattr(self, 'cikis_hedefi', 'cift') in ("cift", "ekran")
+            kaydet_txt = getattr(self, 'cikis_hedefi', 'cift') in ("cift", "txt")
 
             pano_basarili = False
-            for _ in range(3):
-                try:
-                    self.root.clipboard_clear()
-                    self.root.clipboard_append(yapistirilacak)
-                    self.root.update()
-                    pano_basarili = True
-                    logger.info(">> [Pano] Metin panoya kopyalandı! (Ctrl + V)")
-                    break
-                except Exception:
-                    time.sleep(0.04)
+            if yaz_ekrana:
+                # Aktif uygulamaya yapıştırırken kelimelerin birbirine yapışmasını önlemek için sonuna boşluk ekle
+                yapistirilacak = metin if metin.endswith((" ", "\n", "\t")) else (metin + " ")
 
-            if not pano_basarili:
-                logger.error("[Pano Hatası] Metin panoya yazılamadı! Güvenlik nedeniyle otomatik yapıştırma atlandı.")
-                self.alt_cubuk_gecici_mesaj("⚠️ Pano kopyalanamadı! Yapıştırma iptal edildi.")
+                for _ in range(3):
+                    try:
+                        self.root.clipboard_clear()
+                        self.root.clipboard_append(yapistirilacak)
+                        self.root.update()
+                        pano_basarili = True
+                        logger.info(">> [Pano] Metin panoya kopyalandı! (Ctrl + V)")
+                        break
+                    except Exception:
+                        time.sleep(0.04)
 
-            self.storage.metin_kaydet(metin)
+                if not pano_basarili:
+                    logger.error("[Pano Hatası] Metin panoya yazılamadı! Güvenlik nedeniyle otomatik yapıştırma atlandı.")
+                    self.alt_cubuk_gecici_mesaj("⚠️ Pano kopyalanamadı! Yapıştırma iptal edildi.")
+
+            if kaydet_txt:
+                self.storage.metin_kaydet(metin)
 
             enter_adet = self.bekleyen_yeni_satir
             self.bekleyen_yeni_satir = 0
@@ -1070,22 +1335,23 @@ class ArkaPlanNotDonusturucu:
             self.bekleyen_tab = 0
             self.isleniyor = False
 
-            if enter_adet > 0:
+            if kaydet_txt and enter_adet > 0:
                 for _ in range(enter_adet):
                     self.storage.yeni_satir_ekle()
 
             if self.yazma_modu_aktif:
                 self.root.after(0, self.butonlari_ciz)
 
-            # Kullanıcı jest yaptıysa enter_adet basılır. Genel otomatik_enter açıksa en az 1 enter basılır.
-            gonderilecek_enter = enter_adet + (1 if (self.otomatik_enter and enter_adet == 0) else 0)
-            if self.otomatik_yapistir and pano_basarili:
-                threading.Thread(target=self._arka_planda_yapistir_ve_enter, args=(gonderilecek_enter, tab_adet), daemon=True).start()
-            else:
-                if gonderilecek_enter > 0:
-                    threading.Thread(target=self._arka_planda_enter_bas, args=(gonderilecek_enter,), daemon=True).start()
-                if tab_adet > 0:
-                    threading.Thread(target=self._arka_planda_tab_bas, args=(tab_adet,), daemon=True).start()
+            if yaz_ekrana:
+                # Kullanıcı jest yaptıysa enter_adet basılır. Genel otomatik_enter açıksa en az 1 enter basılır.
+                gonderilecek_enter = enter_adet + (1 if (self.otomatik_enter and enter_adet == 0) else 0)
+                if self.otomatik_yapistir and pano_basarili:
+                    threading.Thread(target=self._arka_planda_yapistir_ve_enter, args=(gonderilecek_enter, tab_adet), daemon=True).start()
+                else:
+                    if gonderilecek_enter > 0:
+                        threading.Thread(target=self._arka_planda_enter_bas, args=(gonderilecek_enter,), daemon=True).start()
+                    if tab_adet > 0:
+                        threading.Thread(target=self._arka_planda_tab_bas, args=(tab_adet,), daemon=True).start()
 
         finally:
             self.isleniyor = False

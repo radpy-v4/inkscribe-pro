@@ -56,6 +56,8 @@
 | :--- | :--- | :--- |
 | **`F8`** | Global (Always) | Toggle Note Pad display (configurable in config.json) |
 | **`F9`** | Global (Always) | Switch between Floating Mini Pad and Full-Screen Mode |
+| **`F10`** | Global (Always) | Cycle Output Target: **Dual (Screen+TXT)** ➔ **Screen Only** ➔ **TXT Only** |
+| **`[🎯 Output]` Button** | Mini Pad Bottom Bar & Full-Screen | One-click toggle between output targets (Dual / Screen Only / TXT Only) |
 | **`[↶]` Button** | Mini Pad & Full-Screen | Undo last cleared or scratched-out drawing |
 | **`[Temizle]` Button** | Mini Pad & Full-Screen | Clear canvas (saved to undo buffer) |
 | **`[Tab ⇥]` Button** | Mini Pad & Full-Screen | Send immediate Tab key to active target window (jump to next form field / cell) |

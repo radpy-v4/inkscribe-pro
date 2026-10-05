@@ -90,8 +90,13 @@ class ConfigManager:
         self.ai_onay_verildi = False
         self.ai_consent_gosterildi = False
         self.titreme_filtresi_aktif = True
+        self.navigasyon_jestleri_aktif = True   # Enter Kancası (↵) ve gezinme jestleri aktif (Anti-S korumalı)
+        self.karalama_silme_aktif = True        # Karalama ile silme (güvenli jest)
         self.hotkey_toggle = "<f8>"
         self.hotkey_fullscreen = "<f9>"
+        self.hotkey_output_mode = "<f10>"
+        self.cikis_hedefi = "cift"  # "cift", "ekran", "txt"
+        self.bekleme_suresi = 2.5  # saniye cinsinden yazma sonrası otomatik aktarım gecikmesi (rahat yazım için)
         self.thinking_desteklemeyenler = set()
         self._notes_dir = self.app_dir
         self.notes_dir_fallback_olustu = False
@@ -148,9 +153,15 @@ class ConfigManager:
 
                         self.hotkey_toggle = cfg.get("hotkey_toggle", self.hotkey_toggle)
                         self.hotkey_fullscreen = cfg.get("hotkey_fullscreen", self.hotkey_fullscreen)
+                        self.hotkey_output_mode = cfg.get("hotkey_output_mode", self.hotkey_output_mode)
+                        hedef = cfg.get("cikis_hedefi", self.cikis_hedefi)
+                        self.cikis_hedefi = hedef if hedef in ("cift", "ekran", "txt") else "cift"
+                        self.bekleme_suresi = float(cfg.get("bekleme_suresi", self.bekleme_suresi))
                         self.ai_onay_verildi = bool(cfg.get("ai_onay_verildi", self.ai_onay_verildi))
                         self.ai_consent_gosterildi = cfg.get("ai_consent_gosterildi", self.ai_consent_gosterildi)
                         self.titreme_filtresi_aktif = bool(cfg.get("titreme_filtresi_aktif", self.titreme_filtresi_aktif))
+                        self.navigasyon_jestleri_aktif = bool(cfg.get("navigasyon_jestleri_aktif", self.navigasyon_jestleri_aktif))
+                        self.karalama_silme_aktif = bool(cfg.get("karalama_silme_aktif", self.karalama_silme_aktif))
 
                         loaded_model = cfg.get("gemini_model", self.gemini_model)
                         # Sadece fiilen kapanmış veya aşırı kotalı eski modelleri yükselt
@@ -163,7 +174,7 @@ class ConfigManager:
 
                         self.thinking_desteklemeyenler = set(cfg.get("thinking_desteklemeyenler", []))
                         self.ai_modu_aktif = cfg.get("ai_modu_aktif", self.ai_modu_aktif)
-                        logger.info(f">> [Config] Yüklendi ({self.config_dosyasi}) - Model: {self.gemini_model} | Timeout: {self.gemini_timeout}s")
+                        logger.info(f">> [Config] Yüklendi ({self.config_dosyasi}) - Model: {self.gemini_model} | Timeout: {self.gemini_timeout}s | Bekleme: {self.bekleme_suresi}s")
                 else:
                     self._kaydet_unlocked()
             except Exception as e:
@@ -185,14 +196,19 @@ class ConfigManager:
                 "gemini_timeout": self.gemini_timeout,
                 "gemini_toplam_butce": self.gemini_toplam_butce,
                 "notes_dir": self._notes_dir,
+                "cikis_hedefi": self.cikis_hedefi,
+                "bekleme_suresi": self.bekleme_suresi,
                 "hotkey_toggle": self.hotkey_toggle,
                 "hotkey_fullscreen": self.hotkey_fullscreen,
+                "hotkey_output_mode": self.hotkey_output_mode,
                 "ai_modu_aktif": self.ai_modu_aktif,
                 "ai_onay_verildi": self.ai_onay_verildi,
                 "ai_consent_gosterildi": self.ai_consent_gosterildi,
                 "titreme_filtresi_aktif": self.titreme_filtresi_aktif,
+                "navigasyon_jestleri_aktif": self.navigasyon_jestleri_aktif,
+                "karalama_silme_aktif": self.karalama_silme_aktif,
                 "thinking_desteklemeyenler": sorted(list(self.thinking_desteklemeyenler)),
-                "aciklama": "ai_modu_aktif true iken Gemini Vision modeli kullanılır. Model yanıt vermezse anında offline Windows Ink motoruna düşer."
+                "aciklama": "ai_modu_aktif true iken Gemini Vision modeli kullanılır. cikis_hedefi: 'cift' (ekran+txt), 'ekran' (sadece imleç), 'txt' (sadece defter)."
             }
             tmp_dosya = self.config_dosyasi + ".tmp"
             with open(tmp_dosya, "w", encoding="utf-8") as f:

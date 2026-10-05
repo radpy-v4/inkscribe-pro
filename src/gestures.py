@@ -50,47 +50,69 @@ def dikey_cizgi_jesti_mi(noktalar, gecen_sure, dy_min=70, dx_max=45):
 def enter_kancasi_jesti_mi(noktalar, gecen_sure, scale=1.0):
     """
     Klasik Enter Kancası (↵ / ↲) jesti:
-    Yukarıdan aşağıya inip ardından sola doğru uzanan köşe/kanca hareketi.
-    Klavyedeki Enter simgesine dayanır; doğal el yazısı harfleriyle (l, i, 1, L) asla karışmaz.
+    Yukarıdan aşağıya inip ardından sola doğru uzanan keskin köşe/kanca hareketi.
+    'S', 's', 'c', '5', '8', '?' gibi kıvrımlı el yazısı harfleriyle KESİNLİKLE karışmaz.
     """
-    if len(noktalar) < 4 or gecen_sure >= 1.2 or gecen_sure < 0.02:
+    if len(noktalar) < 6 or gecen_sure >= 1.2 or gecen_sure < 0.05:
         return False
 
     p_ilk = noktalar[0]
     p_son = noktalar[-1]
 
-    # Dinamik DPI ölçekli eşikler (küçük ve hızlı el hareketlerini de yakalar)
-    min_asagi_inme = 25.0 * scale
-    min_sola_donus = 16.0 * scale
-
     y_degerleri = [p.y for p in noktalar]
     x_degerleri = [p.x for p in noktalar]
 
     y_max = max(y_degerleri)
-    x_max = max(x_degerleri)
     idx_y_max = y_degerleri.index(y_max)
 
-    # 1. Belirgin dikey iniş kontrolü (Aşağı hareket)
+    # 1. 'S' Harfi ve Dalgalı Çizgi Koruması:
+    # 'S' harfinde vuruş önce sola, sonra orta gövdede sağa, sonra alta sola kıvrılır.
+    # Gerçek Enter kancasında ise el sadece aşağı iner ve sola döner; asla belirgin sağa gitmez!
+    saga_hareket = sum(max(0.0, x_degerleri[i] - x_degerleri[i - 1]) for i in range(1, len(x_degerleri)))
+    if saga_hareket > (12.0 * scale):
+        return False
+
+    # Yatay yön değişimleri kontrolü ('S' veya dalgalı eğrilerde en az 2 yön değişimi olur)
+    yon_degisimleri = 0
+    son_yon = 0
+    for i in range(1, len(x_degerleri)):
+        dx = x_degerleri[i] - x_degerleri[i - 1]
+        if abs(dx) > (5.0 * scale):
+            yon = 1 if dx > 0 else -1
+            if son_yon != 0 and yon != son_yon:
+                yon_degisimleri += 1
+            son_yon = yon
+    if yon_degisimleri >= 2:
+        return False
+
+    # 2. Dikey İniş ve Köşe Sıralaması
+    min_asagi_inme = 35.0 * scale
     dy_down = y_max - p_ilk.y
     if dy_down < min_asagi_inme:
         return False
 
-    # 2. Belirgin sola dönüş kontrolü (Sola hareket)
-    # Bitiş noktası en sağdaki köşeden belirgin şekilde solda olmalı
-    dx_left = x_max - p_son.x
+    # Köşe en azından vuruşun ikinci yarısında olmalı (önce aşağı inilmeli)
+    if idx_y_max < len(noktalar) * 0.35:
+        return False
+
+    # İniş kolunun düzgünlüğü: Dikey iniş boyunca X sapması sınırlı olmalı
+    inis_x = x_degerleri[:idx_y_max + 1]
+    if (max(inis_x) - min(inis_x)) > (20.0 * scale):
+        return False
+
+    # 3. Sola Dönüş Kolu (Yatay Kol)
+    min_sola_donus = 24.0 * scale
+    dx_left = inis_x[-1] - p_son.x
     if dx_left < min_sola_donus:
         return False
 
-    # Bitiş noktası başlangıç noktasının çok sağında bitemez ('L' harfi gibi sağa dönemez!)
-    if p_son.x > p_ilk.x + (6.0 * scale):
+    # Yatay kol boyunca Y sapması küçük olmalı (düz veya hafif yatay bir çizgi)
+    donus_y = y_degerleri[idx_y_max:]
+    if (max(donus_y) - min(donus_y)) > (16.0 * scale):
         return False
 
-    # 3. Sıralama kontrolü: En dip nokta vuruşun en başında olamaz (aşağı inip sola dönülmeli)
-    if idx_y_max == 0:
-        return False
-
-    # 4. Sol kuyruğun yukarı aşırı kıvrılmaması (J veya U harfini önleme)
-    if (y_max - p_son.y) > (dy_down * 0.75):
+    # Sol kuyruğun yukarı aşırı kıvrılmaması (J, U, veya C harfini önleme)
+    if (y_max - p_son.y) > (16.0 * scale):
         return False
 
     return True

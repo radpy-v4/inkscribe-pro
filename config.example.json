@@ -8,10 +8,13 @@
     "gemini_timeout": 3.5,
     "gemini_toplam_butce": 6.0,
     "notes_dir": "",
+    "cikis_hedefi": "cift",
+    "bekleme_suresi": 1.4,
     "hotkey_toggle": "<f8>",
     "hotkey_fullscreen": "<f9>",
+    "hotkey_output_mode": "<f10>",
     "ai_modu_aktif": true,
     "titreme_filtresi_aktif": true,
-    "aciklama": "ai_modu_aktif true iken Gemini Vision modeli kullanılır. Model yanıt vermezse anında offline Windows Ink motoruna düşer."
+    "aciklama": "ai_modu_aktif true iken Gemini Vision modeli kullanılır. cikis_hedefi: 'cift' (ekran+txt), 'ekran' (sadece imleç), 'txt' (sadece defter)."
 }
 

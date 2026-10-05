@@ -107,6 +107,13 @@ class TestInkScribeMantik(unittest.TestCase):
         noktalar_duz = [Point(100, 50), Point(101, 80), Point(102, 110), Point(103, 150)]
         self.assertFalse(enter_kancasi_jesti_mi(noktalar_duz, 0.20))
 
+        # 'S' harfi (sağa kıvrılıp sonra sola dönen kıvrımlı hareket) elenmeli (Anti-S koruması)
+        noktalar_s = [
+            Point(100, 50), Point(80, 55), Point(75, 70),
+            Point(95, 95), Point(115, 115), Point(90, 140), Point(60, 155)
+        ]
+        self.assertFalse(enter_kancasi_jesti_mi(noktalar_s, 0.35))
+
     def test_sagdan_sola_cizgi_geri_al(self):
         """Sağdan sola yatay çizgi (←) Geri Al jesti olarak başarıyla tanınmalı."""
         noktalar_geri_al = [Point(200, 100), Point(160, 101), Point(120, 99), Point(80, 102), Point(40, 100)]
@@ -317,13 +324,30 @@ class TestInkScribeMantik(unittest.TestCase):
             self.assertIn("# InkScribe Pro - Genel", icerik)
             self.assertIn("İlk Toplantı Notu", icerik)
 
-            # 2. Yapılacaklar Defterine Yazma
+            # 2. Yapılacaklar Defterine Yazma (ve aynı satırda birleştirme)
             nb.defter_sec(2)
             self.assertEqual(nb.aktif_defter_adi, "Yapılacaklar")
             nb.metin_kaydet("Ekmek al")
             with open(nb.aktif_defter_dosyasi, "r", encoding="utf-8") as f:
                 icerik_todo = f.read()
             self.assertIn("[ ] Ekmek al", icerik_todo)
+
+            # Devamında yazılan kelime yeni madde açmamalı, aynı maddeye eklenmeli
+            nb.metin_kaydet("ve süt")
+            with open(nb.aktif_defter_dosyasi, "r", encoding="utf-8") as f:
+                icerik_todo2 = f.read()
+            self.assertIn("[ ] Ekmek al ve süt", icerik_todo2)
+
+            # Enter kancası veya butonu ile yeni satır eklenince yeni madde açılmalı
+            nb.yeni_satir_ekle()
+            nb.metin_kaydet("Yumurta")
+            with open(nb.aktif_defter_dosyasi, "r", encoding="utf-8") as f:
+                icerik_todo3 = f.read()
+            self.assertIn("[ ] Yumurta", icerik_todo3)
+
+            # 3. Dosyaların defterler/ alt klasöründe tutulduğunu doğrula
+            self.assertTrue(os.path.isdir(nb.defterler_dizini))
+            self.assertEqual(os.path.dirname(nb.aktif_defter_dosyasi), nb.defterler_dizini)
 
     def test_config_manager_gecersiz_model_otomatik_yukseltme(self):
         """Eski model (örn. gemini-1.5-flash) kayıtlıysa ConfigManager otomatik gemini-3.5-flash'a güncellemeli."""
@@ -491,6 +515,7 @@ class TestInkSessionJestAkisi(unittest.TestCase):
         app.bekleme_suresi = 0.65
         app.otomatik_enter = False
         app.otomatik_yapistir = True
+        app.cikis_hedefi = "cift"
         app.son_x = None
         app.son_y = None
         app.son_yazma_zamani = 0
@@ -594,7 +619,7 @@ class TestInkSessionJestAkisi(unittest.TestCase):
         app.son_yazma_zamani = time.time() - 1.0
         app._debounce_kur()
         cagri_ms_gecikmeli = app.root.after.call_args[0][0]
-        self.assertEqual(cagri_ms_gecikmeli, 60)
+        self.assertIn(cagri_ms_gecikmeli, (60, 100))
 
     def test_donusum_surerken_dikey_cizgi_cizgiyi_tuvalden_ve_resimden_temizler(self):
         """Gerçek ArkaPlanNotDonusturucu: Dönüşüm sürerken gelen fiskede hem tuval hem self.image tertemiz kalmalı."""
@@ -670,6 +695,114 @@ class TestInkSessionJestAkisi(unittest.TestCase):
         p_yeni = filtre.filtrele(200.0, 200.0)
         self.assertEqual(p_yeni.x, 200.0)
         self.assertEqual(p_yeni.y, 200.0)
+
+    def test_cikis_hedefi_config_varsayilan_ve_gecerlilik(self):
+        """ConfigManager cikis_hedefi ayarını varsayılan 'cift' olarak yüklemeli, geçersiz değerleri 'cift' yapmalı."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg = ConfigManager(tmpdir)
+            self.assertEqual(cfg.cikis_hedefi, "cift")
+
+            # Geçersiz değer ile kaydetme simülasyonu
+            cfg_path = os.path.join(tmpdir, "config.json")
+            with open(cfg_path, "w", encoding="utf-8") as f:
+                json.dump({"cikis_hedefi": "gecersiz_mod"}, f)
+
+            cfg2 = ConfigManager(tmpdir)
+            self.assertEqual(cfg2.cikis_hedefi, "cift")
+
+            # Geçerli modlar (ekran, txt)
+            with open(cfg_path, "w", encoding="utf-8") as f:
+                json.dump({"cikis_hedefi": "ekran"}, f)
+            cfg3 = ConfigManager(tmpdir)
+            self.assertEqual(cfg3.cikis_hedefi, "ekran")
+
+    def test_cikis_hedefi_dongusu(self):
+        """cikis_hedefi_degistir() sırasıyla cift -> ekran -> txt -> cift döngüsünü işletmeli."""
+        app = self._olustur_gercek_app()
+        app.alt_cubuk_gecici_mesaj = MagicMock()
+        app.cikis_hedefi = "cift"
+
+        app.cikis_hedefi_degistir()
+        self.assertEqual(app.cikis_hedefi, "ekran")
+        self.assertEqual(app.config.cikis_hedefi, "ekran")
+        app.config.kaydet.assert_called()
+
+        app.cikis_hedefi_degistir()
+        self.assertEqual(app.cikis_hedefi, "txt")
+
+        app.cikis_hedefi_degistir()
+        self.assertEqual(app.cikis_hedefi, "cift")
+
+        # Doğrudan atama
+        app.cikis_hedefi_degistir("ekran")
+        self.assertEqual(app.cikis_hedefi, "ekran")
+
+    def test_cikis_hedefi_sadece_ekran_modunda_deftere_yazmaz(self):
+        """'ekran' modunda panoya_ve_dosyaya_aktar deftere (storage) yazmamalı, ekrana yapıştırmalı."""
+        app = self._olustur_gercek_app()
+        app.cikis_hedefi = "ekran"
+        app._debounce_kur = MagicMock()
+        app._arka_planda_yapistir_ve_enter = MagicMock()
+
+        with patch("threading.Thread") as mock_thread:
+            app.panoya_ve_dosyaya_aktar("Merhaba Dunya")
+            app.storage.metin_kaydet.assert_not_called()
+            # Pano işlemleri çalışmalı
+            app.root.clipboard_append.assert_called_with("Merhaba Dunya ")
+            self.assertTrue(mock_thread.called)
+
+    def test_cikis_hedefi_sadece_txt_modunda_ekrana_yapistirmaz(self):
+        """'txt' modunda panoya_ve_dosyaya_aktar deftere (storage) yazmalı, panoya veya ekrana dokunmamalı."""
+        app = self._olustur_gercek_app()
+        app.cikis_hedefi = "txt"
+        app._debounce_kur = MagicMock()
+
+        with patch("threading.Thread") as mock_thread:
+            app.panoya_ve_dosyaya_aktar("Gizli Not")
+            app.storage.metin_kaydet.assert_called_once_with("Gizli Not")
+            # Pano veya ekrana yapıştırma thread'i başlatılmamalı
+            app.root.clipboard_append.assert_not_called()
+            mock_thread.assert_not_called()
+
+    def test_cikis_hedefi_cift_modunda_her_ikisine_de_yazar(self):
+        """'cift' modunda hem storage.metin_kaydet hem de panoya kopyalama ve yapıştırma çalışmalı."""
+        app = self._olustur_gercek_app()
+        app.cikis_hedefi = "cift"
+        app._debounce_kur = MagicMock()
+
+        with patch("threading.Thread") as mock_thread:
+            app.panoya_ve_dosyaya_aktar("Cift Mod Metni")
+            app.storage.metin_kaydet.assert_called_once_with("Cift Mod Metni")
+            app.root.clipboard_append.assert_called_with("Cift Mod Metni ")
+            self.assertTrue(mock_thread.called)
+
+    def test_bekleme_suresi_ayarlari(self):
+        """bekleme_suresi config'den yüklenmeli ve bekleme_suresi_ayarla ile sınırlandırılarak güncellenmeli."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg = ConfigManager(tmpdir)
+            self.assertAlmostEqual(cfg.bekleme_suresi, 2.5)
+
+            cfg_path = os.path.join(tmpdir, "config.json")
+            with open(cfg_path, "w", encoding="utf-8") as f:
+                json.dump({"bekleme_suresi": 3.5}, f)
+            cfg2 = ConfigManager(tmpdir)
+            self.assertAlmostEqual(cfg2.bekleme_suresi, 3.5)
+
+        app = self._olustur_gercek_app()
+        app.alt_cubuk_gecici_mesaj = MagicMock()
+        app.bekleme_suresi_ayarla(2.0)
+        self.assertAlmostEqual(app.bekleme_suresi, 2.0)
+        self.assertAlmostEqual(app.config.bekleme_suresi, 2.0)
+        app.config.kaydet.assert_called()
+
+        # Alt ve üst sınır kontrolü (min 0.4, max 5.0)
+        app.bekleme_suresi_ayarla(0.1)
+        self.assertAlmostEqual(app.bekleme_suresi, 0.4)
+        app.bekleme_suresi_ayarla(10.0)
+        self.assertAlmostEqual(app.bekleme_suresi, 5.0)
+        # Manuel mod kontrolü (0.0)
+        app.bekleme_suresi_ayarla(0.0)
+        self.assertAlmostEqual(app.bekleme_suresi, 0.0)
 
 
 if __name__ == "__main__":

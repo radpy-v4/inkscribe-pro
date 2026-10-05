@@ -40,8 +40,10 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 - **✍️ Akıllı Jestler (Gestures):**
   - **Karalama (Scratch-out):** Yazının üzerini karaladığınızda ped temizlenir (bitişik el yazısıyla karışmaması için yoğunluk korumalıdır).
   - **Dikey Hızlı Çizgi (Enter):** Doğal bir aşağı fiske hareketiyle deftere yeni satır ekler; tuvalde yazı varsa önce dönüştürür, ardından yeni satırı kuyruğa alır (Tepsiden "Otomatik Enter Tuşu" açılarak harici uygulamalara da Enter basılabilir).
-- **📚 Çoklu Defter Yönetimi:**
-  - `Ders Notları`, `Yapılacaklar`, `Fikirler` gibi farklı sekmeler arasında tek tıkla geçiş ve otomatik dosya kaydı (`.txt`).
+- **📚 Açılır Kart ile Çoklu Defter Yönetimi (`defterler/`):**
+  - Tüm notlar ana dizin yerine derli toplu olarak **`defterler/`** klasöründe saklanır (varsa eski dosyalar otomatik olarak buraya taşınır).
+  - Üst çubuktaki **`[📓 Not Defteri (...) ▾]`** açılır kart butonuyla `Genel`, `Ders Notları`, `Yapılacaklar`, `Fikirler` arasında tek dokunuşla geçiş yapılır.
+  - Açılır menü içerisinden **`📂 Bu Defteri Aç (.txt)`** veya doğrudan **`📁 Defterler Klasörünü Aç`** butonlarıyla dosyalara erişilebilir.
 - **🛡️ Gizlilik Odaklı Loglama & %0 Boşta CPU:**
   - Özel not metinleri log dosyasına asla düz metin yazılmaz; yalnızca karakter uzunluğu tutulur.
   - `RotatingFileHandler` (512 KB × 2) ile log boyutu sınırlandırılır.
@@ -55,20 +57,23 @@ Grafik tabletler (VEIKK, Wacom, XP-Pen, Huion vb.) ve Windows dokunmatik cihazla
 | :--- | :--- | :--- |
 | **`F8`** | Global (Her Zaman) | Not pedini göster / gizle (config.json ile özelleştirilebilir) |
 | **`F9`** | Global (Her Zaman) | Yüzen Mini Pad ile Tam Ekran modu arasında geçiş yap |
+| **`F10`** | Global (Her Zaman) | Aktarım Modu Değiştir: **Çift (Ekran+TXT)** ➔ **Sadece Ekran** ➔ **Sadece TXT** |
+| **`[📓 Not Defteri ▾]`** | Mini Pad & Tam Ekran | Açılır menüyü açar; defter seçimi, aktif defteri açma veya `defterler/` klasörünü açma imkanı sunar |
+| **`[↵ Gönder]` Butonu** | Mini Pad & Tam Ekran | Çizilen el yazısını beklemeden anında dönüştürüp hedefe aktarır (Boşken Enter basar) |
+| **`[⏱️ Süre]` Butonu** | Mini Pad Alt Bar | Yazma bekleme süresini tek dokunuşla döngüsel değiştir (1.5s ➔ 2.5s ➔ 3.5s ➔ 5.0s ➔ Manuel) |
+| **`[🎯 Çıkış]` Butonu** | Mini Pad Alt Bar & Tam Ekran | Tek tıkla aktarım hedefini değiştir (Çift / Sadece Ekran / Sadece TXT) |
 | **`[↶]` Butonu** | Mini Pad & Tam Ekran | Yanlışlıkla silinen veya karalanan çizimi anında geri al |
 | **`[Temizle]` Butonu** | Mini Pad & Tam Ekran | Tuvali temizle (Geri alınabilir tampona kaydeder) |
 | **`[Tab ⇥]` Butonu** | Mini Pad & Tam Ekran | Aktif hedef uygulamaya anında Tab tuşu gönderir (Formlar/Hücreler arası geçiş) |
-| **`Enter Kancası (↵)`** | Stylus / Kalem Jesti | Klavyedeki Enter simgesi gibi aşağı inip sola dönerek (↵) veya dikey çizgiyle hedef uygulamaya ve deftere Enter basar |
-| **`Sağdan Sola Çizgi (←)`** | Stylus / Kalem Jesti | Son yazılan vuruşu geri alır; tuval boşsa silinen çizimi geri yükler veya aktif uygulamaya `Ctrl+Z` basar |
-| **`Soldan Sağa Çizgi (→)`** | Stylus / Kalem Jesti | Hedef uygulamaya Tab tuşu gönderir; tuvalde yazı varsa önce yapıştırır, ardından sonraki alana geçer |
-| **`Karalama Jesti`** | Stylus / Kalem Jesti | Çizimi silip ekranı temizler (↶ butonuyla geri alınabilir) |
+| **`Karalama Jesti`** | Stylus / Kalem Jesti | Çizimi karalayarak silip ekranı temizler (↶ butonuyla geri alınabilir) |
+| **`Gezinme Jestleri`** | İsteğe Bağlı Stylus Jesti | Tepsiden açıldığında Enter (↵), Tab (→) ve Geri Al (←) jestleri kullanılabilir ('S', 'l', '1', '-' harfleriyle karışmaması için varsayılan olarak kapalıdır) |
 | **`Ctrl + Z`** | Tam Ekran Modu | Son silinen çizimi geri al |
 | **`Enter`** | Tam Ekran Modu | Beklemeden çizimi anında metne dönüştür |
 | **`Esc`** | Tam Ekran Modu | Çizim pedini gizle |
 | **`Shift + Esc`** | Tam Ekran Modu | Uygulamayı tamamen kapat |
 
 > **ℹ️ Mini Pad Modunda Klavye Odağı:**  
-> Yüzen Mini Pad, siz çizim yaparken arkadaki uygulamanızın (Word, Notion, VS Code, Tarayıcı vb.) klavye odağını kaybetmemesi ve imlecinizin yerinde kalması için Windows `WS_EX_NOACTIVATE` mimarisiyle çalışır. Bu nedenle klavye basışları (`Esc`, `Enter`, `Ctrl+Z`) arkadaki aktif uygulamanıza gider. Mini Pad'de tüm aksiyonlar doğrudan stylus/kalem ile (ekran üzerindeki `[↶]`, `[Temizle]`, `[✕]` butonları ve el yazısı jestleriyle) yönetilir. Klavye kısayolları doğrudan klavye odağı alan **Tam Ekran** modunda etkindir.
+> Yüzen Mini Pad, siz çizim yaparken arkadaki uygulamanızın (Word, Notion, VS Code, Tarayıcı vb.) klavye odağını kaybetmemesi ve imlecinizin yerinde kalması için Windows `WS_EX_NOACTIVATE` mimarisiyle çalışır. Bu nedenle klavye basışları (`Esc`, `Enter`, `Ctrl+Z`) arkadaki aktif uygulamanıza gider. Mini Pad'de tüm aksiyonlar doğrudan stylus/kalem ile (ekran üzerindeki `[↵ Gönder]`, `[↶]`, `[Temizle]`, `[⏱️ Süre]`, `[✕]` butonları ve el yazısıyla) yönetilir. Klavye kısayolları doğrudan klavye odağı alan **Tam Ekran** modunda etkindir.
 
 ---
 
