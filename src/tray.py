@@ -33,7 +33,7 @@ class TrayManager:
         icon_img = self.icon_gorseli_uret()
 
         menu = pystray.Menu(
-            pystray.MenuItem("✍️ Not Pedi (F8)", lambda icon, item: self.app.root.after(0, self.app.yazma_modunu_ac)),
+            pystray.MenuItem("✍️ Not Pedi Göster/Gizle (F8)", lambda icon, item: self.app.root.after(0, self.app.toggle_yazma_modu), default=True),
             pystray.MenuItem("⛶ Tam Ekran / Mini Pad (F9)", lambda icon, item: self.app.root.after(0, self.app.toggle_tam_ekran)),
             pystray.MenuItem("↶ Son Çizimi Geri Al", lambda icon, item: self.app.root.after(0, self.app.geri_al)),
             pystray.Menu.SEPARATOR,
@@ -51,16 +51,17 @@ class TrayManager:
             )),
             pystray.MenuItem("✍️ Gezinme Jestleri (Enter ↵ / Tab ⇥)", lambda icon, item: self.app.root.after(0, self.app.toggle_navigasyon_jestleri), checked=lambda item: getattr(self.app.config, 'navigasyon_jestleri_aktif', False)),
             pystray.MenuItem("📁 Aktif Defter", pystray.Menu(
-                pystray.MenuItem("📝 Genel", lambda icon, item: self.app.root.after(0, lambda: self.app.defter_sec(0)), checked=lambda item: self.app.storage.aktif_defter_index == 0),
-                pystray.MenuItem("📘 Ders Notları", lambda icon, item: self.app.root.after(0, lambda: self.app.defter_sec(1)), checked=lambda item: self.app.storage.aktif_defter_index == 1),
-                pystray.MenuItem("✅ Yapılacaklar", lambda icon, item: self.app.root.after(0, lambda: self.app.defter_sec(2)), checked=lambda item: self.app.storage.aktif_defter_index == 2),
-                pystray.MenuItem("💡 Fikirler", lambda icon, item: self.app.root.after(0, lambda: self.app.defter_sec(3)), checked=lambda item: self.app.storage.aktif_defter_index == 3),
+                pystray.MenuItem("📝 Genel", lambda icon, item: self.app.root.after(0, lambda: self.app.defter_sec(0)), checked=lambda item: self.app.storage.aktif_defter_index == 0, radio=True),
+                pystray.MenuItem("📘 Ders Notları", lambda icon, item: self.app.root.after(0, lambda: self.app.defter_sec(1)), checked=lambda item: self.app.storage.aktif_defter_index == 1, radio=True),
+                pystray.MenuItem("✅ Yapılacaklar", lambda icon, item: self.app.root.after(0, lambda: self.app.defter_sec(2)), checked=lambda item: self.app.storage.aktif_defter_index == 2, radio=True),
+                pystray.MenuItem("💡 Fikirler", lambda icon, item: self.app.root.after(0, lambda: self.app.defter_sec(3)), checked=lambda item: self.app.storage.aktif_defter_index == 3, radio=True),
             )),
-            pystray.MenuItem("📂 Notlar Dosyasını Aç", lambda icon, item: self.app.storage.notlar_dosyasini_ac()),
+            pystray.MenuItem("📂 Bu Defteri Aç (.txt)", lambda icon, item: self.app.root.after(0, self.app.storage.notlar_dosyasini_ac)),
+            pystray.MenuItem("📁 Defterler Klasörünü Aç", lambda icon, item: self.app.root.after(0, self.app.storage.defterler_klasorunu_ac)),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("⚡ Vision AI (Gemini) Hibrit", lambda icon, item: self.app.root.after(0, self.app.toggle_ai_modu), checked=lambda item: self.app.config.ai_modu_aktif),
-            pystray.MenuItem("📋 Otomatik İmlece Yapıştır", self.app.otomatik_yapistir_degistir, checked=lambda item: self.app.otomatik_yapistir),
-            pystray.MenuItem("⏎ Otomatik Enter Tuşu", self.app.otomatik_enter_degistir, checked=lambda item: self.app.otomatik_enter),
+            pystray.MenuItem("📋 Otomatik İmlece Yapıştır", lambda icon, item: self.app.root.after(0, self.app.otomatik_yapistir_degistir), checked=lambda item: self.app.otomatik_yapistir),
+            pystray.MenuItem("⏎ Otomatik Enter Tuşu", lambda icon, item: self.app.root.after(0, self.app.otomatik_enter_degistir), checked=lambda item: self.app.otomatik_enter),
             pystray.MenuItem("🚀 Windows Açılışında Başlat", lambda icon, item: self.app.config.baslangic_durumu_degistir(), checked=lambda item: self.app.config.baslangic_durumu_al()),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("❌ Programdan Çık", lambda icon, item: self.app.root.after(0, self.app.programi_kapat))
