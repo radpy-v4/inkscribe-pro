@@ -17,25 +17,16 @@ except ImportError:
     TrayManager = None
 
 try:
-    from .ui import ArkaPlanNotDonusturucu, main
+    # Keep every package-level entry point on the safety-preserving implementation.
+    from .safe_ui import SafeArkaPlanNotDonusturucu as ArkaPlanNotDonusturucu, main
 except ImportError:
     ArkaPlanNotDonusturucu = None
     main = None
 
 __all__ = [
-    "ConfigManager",
-    "logger",
-    "APP_DIR",
-    "NotebookManager",
-    "metin_ekleme_bicimlendir",
-    "RecognitionEngine",
-    "WindowsInkRecognizer",
-    "GeminiVisionRecognizer",
-    "gemini_metin_ayristir",
-    "karalama_jesti_mi",
-    "dikey_cizgi_jesti_mi",
-    "TitremeFiltresi",
-    "TrayManager",
-    "ArkaPlanNotDonusturucu",
-    "main",
+    "ConfigManager", "logger", "APP_DIR", "NotebookManager",
+    "metin_ekleme_bicimlendir", "RecognitionEngine", "WindowsInkRecognizer",
+    "GeminiVisionRecognizer", "gemini_metin_ayristir", "karalama_jesti_mi",
+    "dikey_cizgi_jesti_mi", "TitremeFiltresi", "TrayManager",
+    "ArkaPlanNotDonusturucu", "main",
 ]
