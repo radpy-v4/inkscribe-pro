@@ -73,6 +73,29 @@ class TestSafetyFixes(unittest.TestCase):
             self.assertEqual(manager.son_satirlari_oku(2), ["new one", "new two"])
             self.assertEqual(manager.son_satirlari_oku(0), [])
 
+    def test_panoya_ve_dosyaya_aktar_types_without_touching_clipboard(self):
+        app = object.__new__(SafeArkaPlanNotDonusturucu)
+        app.cikis_hedefi = "cift"
+        app.otomatik_yapistir = True
+        app.otomatik_enter = False
+        app.bekleyen_yeni_satir = 1
+        app.bekleyen_tab = 0
+        app.yazma_modu_aktif = False
+        app.storage = MagicMock()
+        app.root = MagicMock()
+        app._debounce_kur = MagicMock()
+        with patch("src.safe_ui.threading.Thread") as mock_thread:
+            app.panoya_ve_dosyaya_aktar("Test Notu")
+        app.storage.metin_kaydet.assert_called_once_with("Test Notu")
+        app.storage.yeni_satir_ekle.assert_called_once()
+        app.root.clipboard_clear.assert_not_called()
+        app.root.clipboard_append.assert_not_called()
+        mock_thread.assert_called_once_with(
+            target=app._arka_planda_yaz_karakterleri,
+            args=("Test Notu ", 1, 0),
+            daemon=True,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

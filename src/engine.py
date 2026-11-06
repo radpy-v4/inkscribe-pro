@@ -33,12 +33,19 @@ def gemini_metin_ayristir(candidate):
         return None
 
     txt_lower = txt.strip().lower()
+    temiz_cumle = txt_lower.strip("`'\".,!?:; \n\r\t")
     geveze_kaliplar = (
         "herhangi bir el yazısı", "el yazısı bulunamadı", "el yazısı göremiyorum",
         "metin bulunamadı", "metin göremiyorum", "okunabilir bir metin yok",
         "görselde el yazısı yok", "yazı bulunamadı", "görselde yazı yok"
     )
-    if any(k in txt_lower for k in geveze_kaliplar):
+    red_baslangiclari = (
+        "görüntüde ", "görselde ", "resimde ", "bu görselde ", "bu görüntüde ",
+        "üzgünüm", "maalesef", "herhangi bir ", "el yazısı ", "metin ", "okunabilir ", "yazı bulunamadı"
+    )
+    if temiz_cumle in geveze_kaliplar or (
+        temiz_cumle.startswith(red_baslangiclari) and any(k in temiz_cumle for k in geveze_kaliplar)
+    ):
         return None
 
     return txt if txt else None
@@ -120,11 +127,11 @@ class GeminiVisionRecognizer:
 
             denenecek_modeller = [config_mgr.gemini_model] + [m for m in config_mgr.model_adaylari if m != config_mgr.gemini_model]
             model_404_aldi = False
-            baslangic_zamani = time.time()
+            baslangic_zamani = time.monotonic()
             toplam_butce = getattr(config_mgr, 'gemini_toplam_butce', 8.0)
 
             for index, m_adi in enumerate(denenecek_modeller):
-                kalan_butce = toplam_butce - (time.time() - baslangic_zamani)
+                kalan_butce = toplam_butce - (time.monotonic() - baslangic_zamani)
                 if index > 0 and kalan_butce <= 0.2:
                     logger.warning(f"[AI Vision] Toplam {toplam_butce}s süre bütçesi doldu. Yerel Windows Ink motoruna geçiliyor...")
                     break
@@ -169,7 +176,7 @@ class GeminiVisionRecognizer:
                         retry_payload = dict(payload)
                         retry_payload['generationConfig'] = dict(payload['generationConfig'])
                         retry_payload['generationConfig'].pop('thinkingConfig', None)
-                        kalan_butce = toplam_butce - (time.time() - baslangic_zamani)
+                        kalan_butce = toplam_butce - (time.monotonic() - baslangic_zamani)
                         if kalan_butce <= 0.2:
                             logger.warning(f"[AI Vision] Toplam {toplam_butce}s süre bütçesi doldu. Yerel Windows Ink motoruna geçiliyor...")
                             return None

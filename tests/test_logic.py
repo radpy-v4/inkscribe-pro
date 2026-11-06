@@ -259,6 +259,32 @@ class TestInkScribeMantik(unittest.TestCase):
         config_mgr.kaydet.assert_called()
 
     @patch("urllib.request.urlopen")
+    def test_gemini_vision_gecersiz_api_anahtari_400_model_ayarini_bozmaz(self, mock_urlopen):
+        """Geçersiz API anahtarı gibi thinking ile ilgisiz HTTP 400 hataları modeli önbelleğe almamalı ve tekrar denememeli."""
+        recognizer = GeminiVisionRecognizer()
+        img = Image.new("RGB", (100, 100), "white")
+
+        config_mgr = MagicMock()
+        config_mgr.gemini_api_key = "INVALID_KEY"
+        config_mgr.ai_modu_aktif = True
+        config_mgr.ai_onay_verildi = True
+        config_mgr.gemini_model = "gemini-3.5-flash-lite"
+        config_mgr.model_adaylari = ["gemini-3.5-flash-lite", "gemini-3-flash-preview"]
+        config_mgr.thinking_desteklemeyenler = set()
+        config_mgr.gemini_timeout = 5.0
+        config_mgr.gemini_toplam_butce = 8.0
+
+        err_key = HTTPError("url", 400, "Bad Request", {}, io.BytesIO(b'{"error": {"message": "API key not valid. Please pass a valid API key."}}'))
+        mock_urlopen.side_effect = [err_key]
+
+        metin = recognizer.tani(img, config_mgr)
+
+        self.assertIsNone(metin)
+        self.assertEqual(config_mgr.thinking_desteklemeyenler, set())
+        config_mgr.kaydet.assert_not_called()
+        self.assertEqual(mock_urlopen.call_count, 1)
+
+    @patch("urllib.request.urlopen")
     def test_gemini_vision_429_kota_asimi_yedek_modele_gecer(self, mock_urlopen):
         """HTTP 429 kota aşımında sıradaki model adayına geçilmeli."""
         recognizer = GeminiVisionRecognizer()
@@ -738,17 +764,15 @@ class TestInkSessionJestAkisi(unittest.TestCase):
         self.assertEqual(app.cikis_hedefi, "ekran")
 
     def test_cikis_hedefi_sadece_ekran_modunda_deftere_yazmaz(self):
-        """'ekran' modunda panoya_ve_dosyaya_aktar deftere (storage) yazmamalı, ekrana yapıştırmalı."""
+        """'ekran' modunda panoya_ve_dosyaya_aktar deftere (storage) yazmamalı, panoyu ezmeden ekrana yazmalı."""
         app = self._olustur_gercek_app()
         app.cikis_hedefi = "ekran"
         app._debounce_kur = MagicMock()
-        app._arka_planda_yapistir_ve_enter = MagicMock()
 
         with patch("threading.Thread") as mock_thread:
             app.panoya_ve_dosyaya_aktar("Merhaba Dunya")
             app.storage.metin_kaydet.assert_not_called()
-            # Pano işlemleri çalışmalı
-            app.root.clipboard_append.assert_called_with("Merhaba Dunya ")
+            app.root.clipboard_append.assert_not_called()
             self.assertTrue(mock_thread.called)
 
     def test_cikis_hedefi_sadece_txt_modunda_ekrana_yapistirmaz(self):
@@ -765,7 +789,7 @@ class TestInkSessionJestAkisi(unittest.TestCase):
             mock_thread.assert_not_called()
 
     def test_cikis_hedefi_cift_modunda_her_ikisine_de_yazar(self):
-        """'cift' modunda hem storage.metin_kaydet hem de panoya kopyalama ve yapıştırma çalışmalı."""
+        """'cift' modunda hem storage.metin_kaydet hem de panoyu ezmeden ekrana doğrudan yazma çalışmalı."""
         app = self._olustur_gercek_app()
         app.cikis_hedefi = "cift"
         app._debounce_kur = MagicMock()
@@ -773,7 +797,7 @@ class TestInkSessionJestAkisi(unittest.TestCase):
         with patch("threading.Thread") as mock_thread:
             app.panoya_ve_dosyaya_aktar("Cift Mod Metni")
             app.storage.metin_kaydet.assert_called_once_with("Cift Mod Metni")
-            app.root.clipboard_append.assert_called_with("Cift Mod Metni ")
+            app.root.clipboard_append.assert_not_called()
             self.assertTrue(mock_thread.called)
 
     def test_bekleme_suresi_ayarlari(self):

@@ -22,7 +22,7 @@ try {
 
 # 2. Birim Testleri Calistir
 Write-Host "`n[1/4] Birim testleri calistiriliyor..." -ForegroundColor Yellow
-& $pythonCmd -m unittest tests/test_logic.py
+& $pythonCmd -m unittest discover -s tests -v
 if ($LASTEXITCODE -ne 0) {
     Write-Error "[X] Testler basarisiz oldu! Derleme durduruldu."
     exit 1

@@ -62,7 +62,7 @@ class TrayManager:
             pystray.MenuItem("⚡ Vision AI (Gemini) Hibrit", lambda icon, item: self.app.root.after(0, self.app.toggle_ai_modu), checked=lambda item: self.app.config.ai_modu_aktif),
             pystray.MenuItem("📋 Otomatik İmlece Yapıştır", lambda icon, item: self.app.root.after(0, self.app.otomatik_yapistir_degistir), checked=lambda item: self.app.otomatik_yapistir),
             pystray.MenuItem("⏎ Otomatik Enter Tuşu", lambda icon, item: self.app.root.after(0, self.app.otomatik_enter_degistir), checked=lambda item: self.app.otomatik_enter),
-            pystray.MenuItem("🚀 Windows Açılışında Başlat", lambda icon, item: self.app.config.baslangic_durumu_degistir(), checked=lambda item: self.app.config.baslangic_durumu_al()),
+            pystray.MenuItem("🚀 Windows Açılışında Başlat", lambda icon, item: self.app.root.after(0, self.app.config.baslangic_durumu_degistir), checked=lambda item: self.app.config.baslangic_durumu_al()),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("❌ Programdan Çık", lambda icon, item: self.app.root.after(0, self.app.programi_kapat))
         )

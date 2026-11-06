@@ -26,15 +26,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest
+          pip install -r requirements-dev.txt
 
       - name: Run Unit Tests
         run: |
-          pytest tests/test_logic.py -v
+          pytest tests/ -v
 
       - name: Python Syntax & Compilation Check
         run: |
-          python -m py_compile app.py
+          python -m compileall app.py src tests
 
       - name: Build Standalone Windows Executable
         run: |

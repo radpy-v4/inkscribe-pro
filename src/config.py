@@ -100,7 +100,7 @@ class ConfigManager:
         self.ai_onay_verildi = False
         self.ai_consent_gosterildi = False
         self.titreme_filtresi_aktif = True
-        self.navigasyon_jestleri_aktif = True   # Enter Kancası (↵) ve gezinme jestleri aktif (Anti-S korumalı)
+        self.navigasyon_jestleri_aktif = False  # Varsayılan kapalı (el yazısı harfleriyle karışmaması için)
         self.karalama_silme_aktif = True        # Karalama ile silme (güvenli jest)
         self.hotkey_toggle = "<f8>"
         self.hotkey_fullscreen = "<f9>"

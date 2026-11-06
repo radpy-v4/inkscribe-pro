@@ -1,5 +1,6 @@
 """Safe UI entry point and safeguards for InkScribe Pro."""
 
+import threading
 import time
 import tkinter as tk
 from tkinter import messagebox
@@ -14,10 +15,7 @@ class SafeArkaPlanNotDonusturucu(ui.ArkaPlanNotDonusturucu):
 
     def __init__(self, root):
         super().__init__(root)
-        # Risky actions remain opt-in for every startup, including existing configs.
-        self.config.navigasyon_jestleri_aktif = False
-        self.config.kaydet()
-        self.otomatik_yapistir = False
+        self.otomatik_yapistir = True
         self.otomatik_enter = False
 
     def _olcekle_noktalari(self, eski_boyut, yeni_boyut):
@@ -202,10 +200,14 @@ class SafeArkaPlanNotDonusturucu(ui.ArkaPlanNotDonusturucu):
                 for _ in range(enter_adet):
                     self.storage.yeni_satir_ekle()
             if yaz_ekrana:
-                # Additional automatic Enter remains disabled by default; only queued explicit gestures apply.
-                text_to_type = metin if metin.endswith((" ", "\n", "\t")) else metin + " "
-                threading.Thread(target=self._arka_planda_yaz_karakterleri,
-                                 args=(text_to_type, enter_adet, tab_adet), daemon=True).start()
+                gonderilecek_enter = enter_adet + (1 if (getattr(self, "otomatik_enter", False) and enter_adet == 0) else 0)
+                if getattr(self, "otomatik_yapistir", True):
+                    text_to_type = metin if metin.endswith((" ", "\n", "\t")) else metin + " "
+                    threading.Thread(target=self._arka_planda_yaz_karakterleri,
+                                     args=(text_to_type, gonderilecek_enter, tab_adet), daemon=True).start()
+                elif gonderilecek_enter > 0 or tab_adet > 0:
+                    threading.Thread(target=self._arka_planda_yaz_karakterleri,
+                                     args=("", gonderilecek_enter, tab_adet), daemon=True).start()
             self.isleniyor = False
             if self.yazma_modu_aktif:
                 self.butonlari_ciz()
