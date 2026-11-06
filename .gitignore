@@ -4,37 +4,38 @@ __pycache__/
 *$py.class
 *.spec.bak
 
-# Sanal Ortamlar (Virtual Environments)
+# Virtual environments
 .venv/
 venv/
 ENV/
 env/
 
-# PyInstaller / Derleme Çıktıları
+# PyInstaller / build output
 build/
 dist/
 
-# Hassas Yapılandırma ve API Anahtarları
+# Sensitive configuration and API keys
 config.json
 
-# Kişisel Not Dosyaları ve Test Verileri
+# Personal notes and user data (source-mode storage)
+defterler/
 notlar.txt
 ders_notlari.txt
 yapilacaklar.txt
 fikirler.txt
 
-# Çizim / Debug Görselleri
+# Drawing / debug images
 *.png
 *.jpg
 *.jpeg
 
-# IDE & Editör Ayarları
+# IDE & editor settings
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# İşletim Sistemi Geçici Dosyaları
+# OS temporary files and logs
 Thumbs.db
 Desktop.ini
 .DS_Store
