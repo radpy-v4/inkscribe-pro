@@ -1,0 +1,43 @@
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec.bak
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# PyInstaller / build output
+build/
+dist/
+
+# Sensitive configuration and API keys
+config.json
+
+# Personal notes and user data (source-mode storage)
+defterler/
+notlar.txt
+ders_notlari.txt
+yapilacaklar.txt
+fikirler.txt
+
+# Drawing / debug images
+*.png
+*.jpg
+*.jpeg
+
+# IDE & editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS temporary files and logs
+Thumbs.db
+Desktop.ini
+.DS_Store
+not_alici.log
+*.ini

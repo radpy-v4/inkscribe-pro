@@ -4,11 +4,10 @@
 TabletNotAlici / InkScribe Pro
 Ana Giriş Noktası (Main Application Entry Point)
 
-Bu dosya uygulamanın modern ve modüler mimarideki standart çalıştırma noktasıdır.
-Doğrudan `python app.py` komutuyla veya `TabletNotAlici.exe` derlemesiyle başlatılır.
+Güvenli UI davranışları app giriş noktasından etkinleştirilir.
 """
 
-from src.ui import main
+from src.safe_ui import main
 
 if __name__ == "__main__":
     main()
